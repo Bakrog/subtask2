@@ -1,11 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@openspoon/subtask2",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "Opencode plugin for enhanced subtask control with return context and prompt chaining",
-  "main": "./dist/subtask2/index.js",
-  "types": "./dist/subtask2/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc",
