@@ -1,0 +1,7 @@
+.opencode/
+.git/
+.gitignore
+*.ts
+!*.d.ts
+tsconfig.json
+index.ts

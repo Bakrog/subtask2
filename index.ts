@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Plugin } from "@opencode-ai/plugin";
 
 interface CommandConfig {
@@ -6,21 +5,17 @@ interface CommandConfig {
   chain: string[];
 }
 
-// Parse frontmatter, handling YAML array syntax for chain
 function parseFrontmatter(content: string): Record<string, string | string[]> {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return {};
   const fm: Record<string, string | string[]> = {};
   const lines = match[1].split("\n");
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const keyMatch = line.match(/^(\w+):\s*(.*)/);
     if (!keyMatch) continue;
-    
     const [, key, value] = keyMatch;
-    
-    // Check if next lines are YAML array items (- value)
     if (!value.trim()) {
       const items: string[] = [];
       while (i + 1 < lines.length && lines[i + 1].match(/^\s+-\s+/)) {
@@ -32,7 +27,6 @@ function parseFrontmatter(content: string): Record<string, string | string[]> {
         continue;
       }
     }
-    
     fm[key] = value.trim();
   }
   return fm;
@@ -67,12 +61,11 @@ async function buildManifest(): Promise<Record<string, CommandConfig>> {
 let configs: Record<string, CommandConfig> = {};
 let client: any = null;
 const callState = new Map<string, string>();
-const chainState = new Map<string, string[]>(); // sessionID -> remaining chain prompts
+const chainState = new Map<string, string[]>();
 
 const plugin: Plugin = async (ctx) => {
   configs = await buildManifest();
   client = ctx.client;
-  console.log("[sub-return] Loaded:", Object.keys(configs));
 
   return {
     "tool.execute.before": async (input, output) => {
@@ -103,7 +96,7 @@ const plugin: Plugin = async (ctx) => {
       if (!chain.length) chainState.delete(input.sessionID);
       await client.session.promptAsync({
         path: { id: input.sessionID },
-        body: { parts: [{ type: "text", text: next }] },
+        body: { parts: [{ type: "text", text: next, synthetic: true }] },
       });
     },
   };
