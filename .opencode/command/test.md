@@ -1,14 +1,10 @@
 ---
-description: test
+description: Code Quality & Security Audit
 agent: general
 subtask: true
-model: github-copilot/gpt-4.1
-return: say the word KLAKLAZU 5 times before saying the word I just said.
+return: You are the agent in charge of assessing the review. Challenge, verify, validate - then reject or implement
 chain:
-  - say GROMPOMPOM 3 times.
-  - tell me a joke about bananas.
-  - now use another task tool to do the same thing as previous, then repeat the sequence we established
-  - again, task tool etc...
+  - Task a subagent to do a final review of all changes
 ---
 
-please say the magic word
+Please review the staged changes in relation to the repo, focusing on code quality, potential bugs, and security best practices.
