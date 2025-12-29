@@ -1,11 +1,21 @@
 # @openspoon/subtask2
 
-OpenCode plugin for enhanced subtask control with **return context injection** and **prompt chaining**.
+OpenCode plugin that controls what happens **after** a subtask completes.
 
-## Features
+## The Problem
 
-- **`return`**: Append context to subtask output, ensuring the parent agent receives specific information
-- **`chain`**: Queue follow-up user messages that execute sequentially after the subtask completes
+When a subtask (subagent) finishes and returns to the main agent, the main agent typically just relays the response:
+
+> "Here's what the subagent found: [result]" — _end of turn_
+
+The main agent becomes a passive messenger rather than an active participant.
+
+## The Solution
+
+This plugin adds two frontmatter parameters to subtask commands:
+
+- **`return`**: Injects a prompt at the end of the subtask output, giving the main agent its own task instead of just relaying information
+- **`chain`**: Queues follow-up prompts that execute sequentially after the subtask completes
 
 ## Installation
 
@@ -41,9 +51,22 @@ Review PR#355 for bugs, security issues, and code style problems.
 
 ## How It Works
 
-1. When a subtask command with `return` executes, the return prompt is appended to the task output
-2. When the subtask completes, each `chain` prompt is sent as a user message
-3. Chain prompts execute sequentially
+**Without `return`:**
+
+```
+Subagent → "Found 3 bugs in the code" → Main agent → "The subagent found 3 bugs" → END
+```
+
+**With `return`:**
+
+```
+Subagent → "Found 3 bugs" + "Now assess and implement fixes" → Main agent → *starts working on fixes*
+```
+
+The `return` prompt is injected into the subagent's response, so the main agent receives instructions rather than just information to relay.
+
+`chain` then allows you to queue additional prompts that fire sequentially after each completion, enabling simple multi-step automated workflows.
+
 ## License
 
 MIT
