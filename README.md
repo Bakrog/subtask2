@@ -4,7 +4,7 @@
 
 When a subtask command completes, OpenCode tells the main agent to "summarize the findings." The main agent reports back to you and no further action is taken on the subtask results. The agentic loop dies.
 
-This plugin replaces that "summarize" message with the instructions you want to give it, sending the main agent off on a mission given the subtask results.
+This plugin replaces that "summarize" message with the instructions you want to give it, sending the main agent off on a mission given the subtask(s) results.
 
 ## Features
 
@@ -17,7 +17,7 @@ Tell the main agent exactly what to do after a command completes:
 subtask: true
 return: Assess the code review. Challenge the findings, then implement the valid fixes.
 ---
-Review this PR for bugs.
+Review the PR# $ARGUMENTS for bugs.
 ```
 
 - For `subtask: true` commands, it replaces OpenCode's "summarize" message.
@@ -163,7 +163,7 @@ subtask: true
 parallel: plan-gemini, plan-opus
 return: Compare all 3 plans and validate each directly against the codebase. Pick the best ideas from each and create a unified implementation plan.
 chain:
-  - feed the implementation plan to a @review subagent and have it critically review it.
+  - feed the implementation plan to a @review subagent, let's poke holes.
 ---
 Plan the implementation for the following feature: $ARGUMENTS
 ```
