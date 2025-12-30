@@ -1,9 +1,15 @@
 import type {Plugin} from "@opencode-ai/plugin";
+import YAML from "yaml";
+
+interface ParallelCommand {
+  command: string;
+  arguments?: string;
+}
 
 interface CommandConfig {
   return?: string;
   chain: string[];
-  parallel: string[];
+  parallel: ParallelCommand[];
   agent?: string;
   description?: string;
   template?: string;
@@ -60,31 +66,14 @@ async function loadConfig(): Promise<Subtask2Config> {
   return defaultConfig;
 }
 
-function parseFrontmatter(content: string): Record<string, string | string[]> {
+function parseFrontmatter(content: string): Record<string, unknown> {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return {};
-  const fm: Record<string, string | string[]> = {};
-  const lines = match[1].split("\n");
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const keyMatch = line.match(/^(\w+):\s*(.*)/);
-    if (!keyMatch) continue;
-    const [, key, value] = keyMatch;
-    if (!value.trim()) {
-      const items: string[] = [];
-      while (i + 1 < lines.length && lines[i + 1].match(/^\s+-\s+/)) {
-        i++;
-        items.push(lines[i].replace(/^\s+-\s+/, "").trim());
-      }
-      if (items.length) {
-        fm[key] = items;
-        continue;
-      }
-    }
-    fm[key] = value.trim();
+  try {
+    return YAML.parse(match[1]) ?? {};
+  } catch {
+    return {};
   }
-  return fm;
 }
 
 function getTemplateBody(content: string): string {
@@ -129,11 +118,22 @@ async function buildManifest(): Promise<Record<string, CommandConfig>> {
         const chain = fm.chain;
         const chainArr = chain ? (Array.isArray(chain) ? chain : [chain]) : [];
         const parallel = fm.parallel;
-        const parallelArr = parallel
-          ? Array.isArray(parallel)
-            ? parallel
-            : parallel.split(",").map((s) => s.trim()).filter(Boolean)
-          : [];
+        let parallelArr: ParallelCommand[] = [];
+        if (parallel) {
+          if (Array.isArray(parallel)) {
+            parallelArr = parallel.map((p) => {
+              if (typeof p === "string") {
+                return {command: p.trim()};
+              }
+              if (typeof p === "object" && p.command) {
+                return {command: p.command, arguments: p.arguments};
+              }
+              return null;
+            }).filter((p): p is ParallelCommand => p !== null);
+          } else if (typeof parallel === "string") {
+            parallelArr = parallel.split(",").map((s) => ({command: s.trim()})).filter((p) => p.command);
+          }
+        }
 
         manifest[name] = {
           return: fm.return as string | undefined,
@@ -185,17 +185,21 @@ const plugin: Plugin = async (ctx) => {
       if (!config?.parallel?.length) return;
 
       for (const parallelCmd of config.parallel) {
-        const cmdFile = await loadCommandFile(parallelCmd);
+        const cmdFile = await loadCommandFile(parallelCmd.command);
         if (!cmdFile) continue;
 
         const fm = parseFrontmatter(cmdFile.content);
-        const template = getTemplateBody(cmdFile.content);
+        let template = getTemplateBody(cmdFile.content);
+        
+        // Replace $ARGUMENTS with parallel-specific args or inherit from main command
+        const args = parallelCmd.arguments ?? input.arguments;
+        template = template.replace(/\$ARGUMENTS/g, args);
 
         output.parts.push({
           type: "subtask" as const,
           agent: (fm.agent as string) || "general",
-          description: (fm.description as string) || `Parallel: ${parallelCmd}`,
-          command: parallelCmd,
+          description: (fm.description as string) || `Parallel: ${parallelCmd.command}`,
+          command: parallelCmd.command,
           prompt: template,
         });
       }

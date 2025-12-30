@@ -12,12 +12,11 @@ This plugin replaces that "summarize" message with the instructions you want to 
 
 Tell the main agent exactly what to do after a command completes:
 
-```markdown
+```yaml
 ---
 subtask: true
 return: Assess the code review. Challenge the findings, then implement the valid fixes.
 ---
-
 Review this PR for bugs.
 ```
 
@@ -30,13 +29,12 @@ Review this PR for bugs.
 
 Spawn additional command subtasks alongside the main one:
 
-```markdown
+```yaml
 ---
 subtask: true
 parallel: security-review, perf-review
 return: Synthesize all review results and create a unified action plan.
 ---
-
 Review this code for correctness.
 ```
 
@@ -48,13 +46,41 @@ This runs 3 subtasks in parallel:
 
 When ALL complete, the main agent gets the `return` prompt.
 
+**With custom arguments per command:**
+
+```yaml
+---
+subtask: true
+parallel:
+  - command: research-docs
+    arguments: authentication flow
+  - command: research-codebase
+    arguments: auth middleware implementation
+  - security-audit
+return: Synthesize all findings into an implementation plan.
+---
+Design a new auth system for $ARGUMENTS
+```
+
+- `research-docs` gets "authentication flow" as `$ARGUMENTS`
+- `research-codebase` gets "auth middleware implementation"
+- `security-audit` inherits the main command's `$ARGUMENTS`
+
 **Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return`/`chain` are ignored — only the parent's `return`/`chain` applies.
+
+**Tip:** If all commands share the same arguments, use the simple syntax:
+
+```yaml
+parallel: research-docs, research-codebase, security-audit
+```
+
+All three inherit the main command's `$ARGUMENTS`.
 
 ### 3. `chain` — Sequential follow-up prompts
 
 Queue user messages that fire after the command completes:
 
-```markdown
+```yaml
 ---
 subtask: true
 return: Implement the fix.
@@ -62,7 +88,6 @@ chain:
   - Now write tests for the fix.
   - Run the tests and fix any failures.
 ---
-
 Find the bug in auth.ts
 ```
 
@@ -109,37 +134,53 @@ When a subtask completes, what message does the main agent see?
 
 **Simple: Make the agent act on results**
 
-```markdown
+```yaml
 ---
 return: Implement the suggested improvements.
 ---
-
 Analyze this function for performance issues.
 ```
 
 **Parallel: Multiple perspectives at once**
 
-```markdown
+```yaml
 ---
 subtask: true
 parallel: brainstorm-solutions, research-prior-art
 return: Evaluate all ideas and create an implementation plan.
 ---
-
 Identify the core problem in our auth flow.
+```
+
+**Parallel: Same task, different models**
+
+```yaml
+---
+description: multi-model ensemble, 3 models plan in parallel, best ideas unified
+agent: build
+model: github-copilot/gpt-5.2
+subtask: true
+parallel: plan-gemini, plan-opus
+return: Compare all 3 plans and validate each directly against the codebase. Pick the best ideas from each and create a unified implementation plan.
+chain:
+  - feed the implementation plan to a @review subagent and have it critically review it.
+---
+Plan the implementation for the following feature: $ARGUMENTS
 ```
 
 **Chain: Multi-step workflow**
 
-```markdown
+```yaml
 ---
-return: Create the component.
+description: design, implement, test, document
+subtask: true
+return: Implement the component following the conceptual design specifications.
 chain:
-  - Add unit tests.
-  - Update the documentation.
+  - Write comprehensive unit tests for all edge cases.
+  - Update the documentation and add usage examples.
+  - Run the test suite and fix any failures.
 ---
-
-Design a React modal component.
+Conceptually design a React modal component with the following requirements: $ARGUMENTS
 ```
 
 ## License
