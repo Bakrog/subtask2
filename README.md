@@ -28,7 +28,7 @@ Tell the main agent exactly what to do after a command completes:
 ```yaml
 ---
 subtask: true
-return: Look again, assess the code review. Challenge the findings, then implement the valid fixes.
+return: Look again, challenge the findings, then implement the valid fixes.
 ---
 Review the PR# $ARGUMENTS for bugs.
 ```
