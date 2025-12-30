@@ -34,7 +34,7 @@ Review the PR# $ARGUMENTS for bugs.
 ```
 
 - For `subtask: true` commands, it replaces opencode's default injected "summarize" message.
-- For regular commands, it's injected as a follow-up message after the LLM turn ends, identical to what the "chain" param does
+- For regular commands, it injects the return prompt as a follow-up message when the LLM turn ends, identical to what the "chain" param does
 
 **Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
 
