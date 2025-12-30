@@ -1,44 +1,20 @@
-# @openspoon/subtask2
+# @openspoon/subtask2 - an opencode plugin
 
-Control what happens after a `subtask: true` command completes.
+## The Problem
+
+When a subtask command completes, OpenCode tells the main agent to "summarize the findings." The main agent reports back to you and no further action is taken on the subtask results. The agentic loop dies.
+
+This plugin replaces that "summarize" message with the instructions you want to give it, sending the main agent off on a mission given the subtask results.
 
 ## Prerequisites
 
 **This plugin ONLY works with commands that have `subtask: true` in their frontmatter.**
-
-Why? Because OpenCode only injects a synthetic "summarize" message after `subtask: true` commands — not after regular task tool calls. This plugin intercepts and replaces that message.
 
 ```markdown
 ---
 subtask: true   ← REQUIRED for this plugin to do anything
 ---
 ```
-
-## What's a subtask command vs a regular task tool?
-
-|                        | Regular Task Tool                                   | Subtask Command                                             |
-| ---------------------- | --------------------------------------------------- | ----------------------------------------------------------- |
-| **How it's triggered** | LLM calls the Task tool                             | User runs `/command` with `subtask: true`                   |
-| **After completion**   | Nothing injected. LLM acts on tool result directly. | OpenCode injects: "Summarize the task tool output above..." |
-| **This plugin**        | Does nothing                                        | Replaces that injected message                              |
-
-If you're delegating via instructions like "use the Task tool to research X", that's a regular task tool call — this plugin won't affect it.
-
-## What does this plugin do?
-
-When a `subtask: true` command completes, OpenCode injects:
-
-> "Summarize the task tool output above and continue with your task."
-
-This often makes the main agent just relay results passively:
-
-> "The subagent found 3 bugs." — _end of turn_
-
-**This plugin replaces that message** with something that makes the main agent actually work:
-
-> "Challenge and validate the findings. Then fix the bugs."
-
-Now the main agent continues working instead of just summarizing.
 
 ## Features
 
