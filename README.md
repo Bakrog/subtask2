@@ -95,7 +95,7 @@ All three inherit the main command's `$ARGUMENTS`.
 /mycommand main args || parallel1 args || parallel2 args
 ```
 
-Each segment maps to a parallel command in order. Missing segments inherit the main args.
+Each segment maps to a parallel command in order. Priority: **frontmatter args > pipe args > inherit main args**.
 
 ### 3. `chain` - Sequential follow-up prompts
 
