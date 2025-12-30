@@ -1,29 +1,131 @@
 # @openspoon/subtask2
 
-OpenCode plugin that controls what happens **after** a subtask completes.
+Control what happens after a `subtask: true` command completes.
 
-## The Problem
+## Prerequisites
 
-When a subtask (subagent) finishes, OpenCode injects a generic prompt: `"Summarize the task tool output above and continue with your task."`
+**This plugin ONLY works with commands that have `subtask: true` in their frontmatter.**
 
-This often leads to the main agent just relaying the response:
+Why? Because OpenCode only injects a synthetic "summarize" message after `subtask: true` commands — not after regular task tool calls. This plugin intercepts and replaces that message.
 
-> "Here's what the subagent found: [result]" — *end of turn*
+```markdown
+---
+subtask: true   ← REQUIRED for this plugin to do anything
+---
+```
 
-The main agent becomes a passive messenger rather than an active participant.
+## What's a subtask command vs a regular task tool?
 
-## The Solution
+|                        | Regular Task Tool                                   | Subtask Command                                             |
+| ---------------------- | --------------------------------------------------- | ----------------------------------------------------------- |
+| **How it's triggered** | LLM calls the Task tool                             | User runs `/command` with `subtask: true`                   |
+| **After completion**   | Nothing injected. LLM acts on tool result directly. | OpenCode injects: "Summarize the task tool output above..." |
+| **This plugin**        | Does nothing                                        | Replaces that injected message                              |
 
-This plugin intercepts OpenCode's synthetic message and replaces it with something better:
+If you're delegating via instructions like "use the Task tool to research X", that's a regular task tool call — this plugin won't affect it.
 
-1. **Per-command `return` prompt** — Give specific instructions for what the main agent should do with the subtask result
-2. **`parallel`** — Spawn additional subtasks alongside the main command, all running concurrently
-3. **Global fallback** — Even without `return`, replace the generic prompt with one that encourages critical thinking
-4. **`chain`** — Queue follow-up prompts that execute sequentially after the subtask completes
+## What does this plugin do?
+
+When a `subtask: true` command completes, OpenCode injects:
+
+> "Summarize the task tool output above and continue with your task."
+
+This often makes the main agent just relay results passively:
+
+> "The subagent found 3 bugs." — _end of turn_
+
+**This plugin replaces that message** with something that makes the main agent actually work:
+
+> "Challenge and validate the findings. Then fix the bugs."
+
+Now the main agent continues working instead of just summarizing.
+
+## Features
+
+### 1. `return` — Per-command instructions
+
+Tell the main agent exactly what to do after THIS specific subtask:
+
+```markdown
+---
+subtask: true
+return: Assess the code review. Challenge the findings, then implement the valid fixes.
+---
+
+Review this PR for bugs.
+```
+
+### 2. `parallel` — Run multiple subtasks concurrently ⚠️ **PENDING PR** (ignored for now)
+
+Spawn additional command subtasks alongside the main one:
+
+```markdown
+---
+subtask: true
+parallel: security-review, perf-review
+return: Synthesize all review results and create a unified action plan.
+---
+
+Review this code for correctness.
+```
+
+This runs 3 subtasks in parallel:
+
+1. The main command (correctness review)
+2. `security-review` command
+3. `perf-review` command
+
+When ALL complete, the main agent gets the `return` prompt.
+
+**Note:** Parallel commands must be other command files. Their own `return`/`chain` are ignored — only the parent's `return` applies.
+
+**Requires:** OpenCode with `command.execute.before` hook (pending PR).
+
+### 3. `chain` — Sequential follow-up prompts
+
+Queue user messages that fire after the subtask completes:
+
+```markdown
+---
+subtask: true
+return: Implement the fix.
+chain:
+  - Now write tests for the fix.
+  - Run the tests and fix any failures.
+---
+
+Find the bug in auth.ts
+```
+
+Flow: Subtask → return prompt → LLM works → chain[0] fires → LLM works → chain[1] fires → ...
+
+### 4. Global fallback — Better default for all subtasks
+
+Even without `return`, this plugin will replace OpenCode's generic "summarize" injected message with something "better".
+By default it uses: "Challenge and validate the task tool output above. Verify assumptions, identify gaps or errors, then continue with the next logical step."
+
+Configure in `~/.config/opencode/subtask2.jsonc`:
+
+```jsonc
+{
+  // Replace generic prompt when no 'return' is specified
+  "replace_generic": true,
+
+  // Custom fallback (optional - has built-in default)
+  "generic_return": "your custom return prompt here"
+}
+```
+
+## Priority Order
+
+When a subtask completes, what message does the main agent see?
+
+1. **`return` param** → Your specific instructions (highest priority)
+2. **Config `generic_return`** → Your custom fallback (if `replace_generic: true`)
+3. **Built-in default** → "Challenge and validate..." (if `replace_generic: true`)
+4. **OpenCode original** → "Summarize..." (if `replace_generic: false`)
 
 ## Installation
-
-Add to your `opencode.json`:
 
 ```json
 {
@@ -31,105 +133,58 @@ Add to your `opencode.json`:
 }
 ```
 
-## Configuration
+## Quick Examples
 
-On first run, the plugin creates `~/.config/opencode/subtask2.jsonc`:
-
-```jsonc
-{
-  // Replace OpenCode's generic "Summarize..." prompt when no return is specified
-  "replace_generic": true
-
-  // Custom prompt to use (uses built-in default if not set)
-  // "prompt": "Your custom prompt here"
-}
-```
-
-**Options:**
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `replace_generic` | boolean | `true` | Replace the generic prompt for subtasks without a `return` param |
-| `prompt` | string | (built-in) | Custom replacement prompt. Default: "Challenge and validate the task output above. Verify assumptions, identify gaps or errors, then continue with the next logical step." |
-
-**Priority:**
-
-1. Command `return` param → always wins
-2. Config `prompt` → used when no `return` and `replace_generic: true`
-3. Built-in default → used when no `return`, `replace_generic: true`, and no custom `prompt`
-4. OpenCode's original → only if `replace_generic: false`
-
-## Usage
-
-Add `return`, `parallel`, and/or `chain` to your command frontmatter:
-
-### Example: Code Review Command
-
-`.opencode/command/review.md`
+**Simple: Make the agent act on results**
 
 ```markdown
 ---
-description: subtask2 return and chain prompt example
-agent: general
 subtask: true
-return: You are the agent in charge of assessing the bug review, challenge, verify and validate it, then discard it or implement it.
+return: Implement the suggested improvements.
+---
+
+Analyze this function for performance issues.
+```
+
+**Parallel: Multiple perspectives at once**
+
+```markdown
+---
+subtask: true
+parallel: brainstorm-solutions, research-prior-art
+return: Evaluate all ideas and create an implementation plan.
+---
+
+Identify the core problem in our auth flow.
+```
+
+**Chain: Multi-step workflow**
+
+```markdown
+---
+subtask: true
+return: Create the component.
 chain:
-  - Let's now rinse and repeat with PR#356, use the task tool to review it for bugs etc... then assess, challenge, validate -> discard or implement.
-  - Rinse and repeat, with next PR.
+  - Add unit tests.
+  - Update the documentation.
 ---
 
-Review PR#355 for bugs, security issues, and code style problems.
+Design a React modal component.
 ```
 
-### Example: Parallel Research Command
+## FAQ
 
-`.opencode/command/research.md`
+**Q: Why doesn't this work with my command?**
+A: Check that you have `subtask: true` in the frontmatter.
 
-```markdown
----
-description: Research a topic from multiple angles simultaneously
-agent: general
-subtask: true
-parallel: security-research, performance-research, ux-research
-return: Synthesize the parallel research results. Identify common themes, conflicts, and actionable recommendations.
----
+**Q: Why doesn't this affect Task tool calls the LLM makes?**
+A: OpenCode only injects the "summarize" message after `subtask: true` commands, not regular task tool usage. This plugin can only replace what OpenCode injects.
 
-Research best practices for implementing authentication in our app.
-```
+**Q: Can I use `return` with regular (non-subtask) commands?**
+A: No. Without `subtask: true`, there's no injected message to replace.
 
-When you run `/research`, the plugin spawns three additional subtasks (`security-research`, `performance-research`, `ux-research`) in parallel alongside the main command. All four run concurrently, and when they complete, the main agent synthesizes the results.
-
-**Note:** Parallel commands ignore their own `return`/`chain` params when invoked via `parallel`. The parent command's `return` applies to the combined result.
-
-## How It Works
-
-**Without this plugin:**
-
-```
-Subagent → "Found 3 bugs" → OpenCode adds "Summarize..." → Main agent → "The subagent found 3 bugs" → END
-```
-
-**With `return`:**
-
-```
-Subagent → "Found 3 bugs" → Plugin replaces with "Assess and implement fixes" → Main agent → *starts working on fixes*
-```
-
-**Without `return` but `replace_generic: true`:**
-
-```
-Subagent → "Found 3 bugs" → Plugin replaces with "Challenge and validate..." → Main agent → *critically evaluates and acts*
-```
-
-The plugin intercepts OpenCode's synthetic user message and replaces it, so the main agent receives instructions from the "user" rather than just being told to summarize.
-
-`chain` allows you to queue additional prompts that fire sequentially after each completion, enabling multi-step automated workflows.
-
-`parallel` spawns multiple subtasks concurrently - useful for research, brainstorming, or any task that benefits from multiple perspectives running in parallel.
-
-## Requirements
-
-The `parallel` feature requires OpenCode with the `command.execute.before` hook (added in a recent update). Ensure you're running the latest version.
+**Q: How do I pass arguments to parallel commands?**
+A: Currently, parallel commands use their own template as-is. Argument passing is planned for a future version.
 
 ## License
 

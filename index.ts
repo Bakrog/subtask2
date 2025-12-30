@@ -11,7 +11,7 @@ interface CommandConfig {
 
 interface Subtask2Config {
   replace_generic: boolean;
-  prompt?: string;
+  generic_return?: string;
 }
 
 const DEFAULT_PROMPT =
@@ -23,7 +23,7 @@ function isValidConfig(obj: unknown): obj is Subtask2Config {
   if (typeof obj !== "object" || obj === null) return false;
   const cfg = obj as Record<string, unknown>;
   if (typeof cfg.replace_generic !== "boolean") return false;
-  if (cfg.prompt !== undefined && typeof cfg.prompt !== "string") return false;
+  if (cfg.generic_return !== undefined && typeof cfg.generic_return !== "string") return false;
   return true;
 }
 
@@ -53,7 +53,7 @@ async function loadConfig(): Promise<Subtask2Config> {
   "replace_generic": true
 
   // Custom prompt to use (uses subtask2 substitution prompt by default)
-  // "prompt": "Challenge and validate the task tool output above. Verify assumptions, identify gaps or errors, then continue with the next logical step."
+  // "generic_return": "Challenge and validate the task tool output above. Verify assumptions, identify gaps or errors, then continue with the next logical step."
 }
 `
   );
@@ -221,7 +221,7 @@ const plugin: Plugin = async (ctx) => {
             }
 
             if (hasActiveSubtask && pluginConfig.replace_generic) {
-              part.text = pluginConfig.prompt ?? DEFAULT_PROMPT;
+              part.text = pluginConfig.generic_return ?? DEFAULT_PROMPT;
               hasActiveSubtask = false;
               return;
             }
