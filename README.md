@@ -1,34 +1,44 @@
 # @openspoon/subtask2
 
-`@openspoon/subtask2` gives super powers to your slash commands with 3 new frontmatter parameters
+`@openspoon/subtask2` gives super powers to your slash commands with new frontmatter parameters and more...
 
 - `return` — Tell the main agent what to do with subtask results (not just "summarize")
-- `parallel` — To run multiple subtasks concurrently (acceptsarguments)
+- `parallel` — To run multiple subtasks concurrently (accepts arguments)
 - `chain` — Queue follow-up prompts that fire automatically
 - 'better' defaults — Replace the generic "summarize" on subtask return with something that keeps the agent working or a custom generic prompt
 
 ⚠️ Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` and non-subtask features, and for proper model inheritance to work.
 
+## Installation
+
+Add subtask2 to your opencode config plugin array
+
+```json
+{
+  "plugins": ["@openspoon/subtask2"]
+}
+```
+
 ## Features
 
-### 1. `return` — Per-command instructions
+### 1. `return` - Command 'return' instructions or the old 'look again' trick.
 
 Tell the main agent exactly what to do after a command completes:
 
 ```yaml
 ---
 subtask: true
-return: Assess the code review. Challenge the findings, then implement the valid fixes.
+return: Look again, assess the code review. Challenge the findings, then implement the valid fixes.
 ---
 Review the PR# $ARGUMENTS for bugs.
 ```
 
-- For `subtask: true` commands, it replaces OpenCode's "summarize" message.
+- For `subtask: true` commands, it replaces opencode's default injected "summarize" message.
 - For regular commands, it's injected as a follow-up message after the LLM turn ends, identical to what the "chain" param does
 
-**Note:** For non-subtask commands, requires OpenCode with `command.execute.before` hook (pending PR).
+**Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
 
-### 2. `parallel` — Run multiple subtasks concurrently ⚠️ **PENDING PR** (ignored for now)
+### 2. `parallel` - Run multiple subtasks concurrently ⚠️ **PENDING PR** (ignored for now)
 
 Spawn additional command subtasks alongside the main one:
 
@@ -79,7 +89,15 @@ parallel: research-docs, research-codebase, security-audit
 
 All three inherit the main command's `$ARGUMENTS`.
 
-### 3. `chain` — Sequential follow-up prompts
+**Tip:** You can also pass arguments inline using `||` separator:
+
+```
+/mycommand main args || parallel1 args || parallel2 args
+```
+
+Each segment maps to a parallel command in order. Missing segments inherit the main args.
+
+### 3. `chain` - Sequential follow-up prompts
 
 Queue user messages that fire after the command completes:
 
@@ -88,19 +106,19 @@ Queue user messages that fire after the command completes:
 subtask: true
 return: Implement the fix.
 chain:
-  - Now write tests for the fix.
-  - Run the tests and fix any failures.
+  - Review your implementation for correctness, make sure this work on the first try
+  - Tell me a joke
 ---
 Find the bug in auth.ts
 ```
 
 Flow: Command → return prompt → LLM works → chain[0] fires → LLM works → chain[1] fires → ...
 
-**Note:** For non-subtask commands, requires OpenCode with `command.execute.before` hook (pending PR).
+**Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
 
-### 4. Global fallback — Better default for subtasks
+### 4. Global fallback - 'Better' default for subtasks
 
-For `subtask: true` commands without a `return`, this plugin replaces OpenCode's generic "summarize" message with something better.
+For `subtask: true` commands without a `return`, this plugin replaces opencode's generic "summarize" message with something better.
 
 Default: "Challenge and validate the task output. Verify assumptions, identify gaps or errors, then continue with the next logical step."
 
@@ -124,14 +142,6 @@ When a subtask completes, what message does the main agent see?
 2. **Config `generic_return`** → Your custom fallback (if `replace_generic: true`)
 3. **Built-in default** → "Challenge and validate..." (if `replace_generic: true`)
 4. **OpenCode original** → "Summarize..." (if `replace_generic: false`)
-
-## Installation
-
-```json
-{
-  "plugins": ["@openspoon/subtask2"]
-}
-```
 
 ## Quick Examples
 

@@ -171,6 +171,23 @@ const plugin: Plugin = async (ctx) => {
       const cmd = input.command;
       const config = configs[cmd];
       
+      // Parse pipe-separated arguments: main args || parallel1 args || parallel2 args
+      const argSegments = input.arguments.split("||").map((s) => s.trim());
+      const mainArgs = argSegments[0] || "";
+      const parallelArgs = argSegments.slice(1);
+      
+      // Fix main command's parts to use only mainArgs (not the full pipe string)
+      if (argSegments.length > 1) {
+        for (const part of output.parts) {
+          if (part.type === "subtask" && part.prompt) {
+            part.prompt = part.prompt.replaceAll(input.arguments, mainArgs);
+          }
+          if (part.type === "text" && part.text) {
+            part.text = part.text.replaceAll(input.arguments, mainArgs);
+          }
+        }
+      }
+      
       // Track non-subtask commands with return/chain for later injection
       const hasSubtaskPart = output.parts.some((p: any) => p.type === "subtask");
       if (!hasSubtaskPart && config) {
@@ -184,15 +201,16 @@ const plugin: Plugin = async (ctx) => {
       
       if (!config?.parallel?.length) return;
 
-      for (const parallelCmd of config.parallel) {
+      for (let i = 0; i < config.parallel.length; i++) {
+        const parallelCmd = config.parallel[i];
         const cmdFile = await loadCommandFile(parallelCmd.command);
         if (!cmdFile) continue;
 
         const fm = parseFrontmatter(cmdFile.content);
         let template = getTemplateBody(cmdFile.content);
         
-        // Replace $ARGUMENTS with parallel-specific args or inherit from main command
-        const args = parallelCmd.arguments ?? input.arguments;
+        // Priority: frontmatter args > pipe args > main args
+        const args = parallelCmd.arguments ?? parallelArgs[i] ?? mainArgs;
         template = template.replace(/\$ARGUMENTS/g, args);
 
         // Parse model string "provider/model" into {providerID, modelID}
