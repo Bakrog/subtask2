@@ -1,3 +1,5 @@
+![subtask2 header](media/header.webp)
+
 # A stronger opencode /command handler
 
 ### TL:DR - More agency, control and capabilities for commands
@@ -10,7 +12,6 @@ This plugin affects how opencode handles slash commands with additional frontmat
 - `parallel` run subtasks concurrently - _only parent's `return` applies when all are done_
   - `command` extra command to run along the main one - _forced into a subtask_
   - `arguments` pass arguments with command frontmatter or `||` message pipe
-  - _nested parallels are automatically flattened_ (max depth: 5)
 
 #### ⚠️ Pending PR
 
@@ -185,7 +186,7 @@ Design a new auth system for $ARGUMENTS
 - `research-codebase` gets "auth middleware implementation"
 - `security-audit` inherits the main command's `$ARGUMENTS`
 
-**Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return` are ignored - only the parent's `return` applies.
+**Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return` are ignored - only the parent's `return` applies. Nested parallels are automatically flattened (max depth: 5).
 
 **Tip:** You can also pass arguments inline using `||` separator:
 
@@ -227,9 +228,57 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 
 </details>
 
----
+<details>
+<summary><strong>Demo files</strong> (click to expand)</summary>
 
-![subtask2 header](media/header.webp)
+Prompt used in the demo:
+`/subtask2 10 || pipe2 || pipe3 || pipe4 || pipe5`
+
+`subtask2.md`
+
+```yaml
+---
+description: subtask2 plugin test command
+agent: build
+subtask: true
+parallel: /subtask2-parallel-test PARALLEL
+return:
+  - say the phrase "THE RETURN PROMPT MADE ME SAY THIS" and do NOTHING else
+  - say the phrase "YOU CAN CHAIN PROMPTS, COMMANDS, OR SUBTASKS - NO LIMITS" and do NOTHING else
+  - /subtask2-nested-parallel CHAINED-COMMAND-SUBTASK # <--THIS
+---
+please count to $ARGUMENTS
+```
+
+`subtask2-parallel-test.md`
+
+```yaml
+---
+agent: plan
+model: github-copilot/grok-code-fast-1
+parallel: /subtask2-nested-parallel NESTED-PARALLEL
+subtask: true
+---
+say the word "$ARGUMENTS" 3 times
+```
+
+`subtask2-nested-parallel.md`
+
+```yaml
+---
+agent: explore
+model: github-copilot/gpt-4.1
+subtask: true
+return:
+  - say the phrase "COMPOSE AS SIMPLE OR COMPLEX A WORKFLOW AS YOU WANT" and do NOTHING else
+  - /subtask2-parallel-test LAST CALL
+---
+say the word "$ARGUMENTS" 3 times
+```
+
+</details>
+
+---
 
 To install, add subtask2 to your opencode config plugin array
 
@@ -238,5 +287,7 @@ To install, add subtask2 to your opencode config plugin array
   "plugins": ["@openspoon/subtask2"]
 }
 ```
+
+### Demo
 
 ![Watch demo](media/demo.gif)
