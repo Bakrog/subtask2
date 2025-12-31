@@ -124,7 +124,7 @@ This runs 3 subtasks in parallel:
 2. `security-review` command
 3. `perf-review` command
 
-When ALL complete, the main agent gets the `return` prompt.
+When ALL complete, the main session gets the `return` prompt.
 
 ### With custom arguments per command
 
