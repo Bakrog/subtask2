@@ -235,4 +235,4 @@ To install, add subtask2 to your opencode config plugin array
 }
 ```
 
-[Watch demo](media/demo.gif)
+![Watch demo](media/demo.gif)
