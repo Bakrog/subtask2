@@ -152,7 +152,7 @@ Design a new auth system for $ARGUMENTS
 - `research-codebase` gets "auth middleware implementation"
 - `security-audit` inherits the main command's `$ARGUMENTS`
 
-**Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return` are ignored — only the parent's `return` applies.
+**Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return` are ignored - only the parent's `return` applies.
 
 **Tip:** You can also pass arguments inline using `||` separator:
 
@@ -160,7 +160,7 @@ Design a new auth system for $ARGUMENTS
 /mycommand main args || parallel1 args || parallel2 args
 ```
 
-**Tip:** For all commands to inherit the main `$ARGUMENTS`, you can use a simple syntax:
+**Tip:** For all commands to inherit the main `$ARGUMENTS`, you can use a simpler syntax:
 
 ```yaml
 parallel: research-docs, research-codebase, security-audit
