@@ -36,7 +36,7 @@ Review the PR# $ARGUMENTS for bugs.
 - For `subtask: true` commands, it replaces opencode's default injected "summarize" message.
 - For regular commands, it injects the return prompt as a follow-up message when the LLM turn ends, identical to what the "chain" param does
 
-## **Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
+**Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
 
 ### 2. `parallel` - Run multiple subtasks concurrently ⚠️ **PENDING PR** (ignored for now)
 
@@ -145,26 +145,6 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 
 ## Quick Examples
 
-**Simple: Make the agent act on results**
-
-```yaml
----
-return: Implement the suggested improvements.
----
-Analyze this function for performance issues.
-```
-
-**Parallel: Multiple perspectives at once**
-
-```yaml
----
-subtask: true
-parallel: brainstorm-solutions, research-prior-art
-return: Evaluate all ideas and create an implementation plan.
----
-Identify the core problem in our auth flow.
-```
-
 **Parallel: Same task, different models**
 
 ```yaml
@@ -194,6 +174,17 @@ chain:
   - Run the test suite and fix any failures.
 ---
 Conceptually design a React modal component with the following requirements: $ARGUMENTS
+```
+
+**Parallel: Multiple perspectives at once**
+
+```yaml
+---
+subtask: true
+parallel: brainstorm-solutions, research-prior-art
+return: Evaluate all ideas and create an implementation plan.
+---
+Identify the core problem in our auth flow.
 ```
 
 ## License
