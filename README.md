@@ -14,9 +14,9 @@ Add subtask2 to your opencode config plugin array
 
 ## TL:DR - Keep the agentic loop alive + parallel commands
 
-This plugins affects how opencode handles commands with additional frontmatter parameters and enables parallel commands
+This plugins affects how opencode handles slash commands with additional frontmatter parameters and enables parallel command execution
 
-- `return` tell the main agent what to do with command or subtask(s) results. Supports multiple sequential prompts.
+- `return` tell the main agent what to do with **command** or **subtask(s)** results. Supports multiple sequential prompts.
 - `parallel` run multiple subtasks concurrently (accepts arguments)
 
 ⚠️ Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` and non-subtask command features, as well as proper model inheritance (piping the right model and agent to the right subtask) to work.
