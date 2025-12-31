@@ -25,6 +25,50 @@ Add subtask2 to your opencode config plugin array
 }
 ```
 
+## Examples
+
+**Parallel: Same task, different models**
+
+```yaml
+---
+description: multi-model ensemble, 3 models plan in parallel, best ideas unified
+agent: build
+model: github-copilot/gpt-5.2
+subtask: true
+parallel: plan-gemini, plan-opus
+return: Compare all 3 plans and validate each directly against the codebase. Pick the best ideas from each and create a unified implementation plan.
+chain:
+  - feed the implementation plan to a @review subagent, let's poke holes.
+---
+Plan the implementation for the following feature: $ARGUMENTS
+```
+
+**Chain: Multi-step workflow**
+
+```yaml
+---
+description: design, implement, test, document
+subtask: true
+return: Implement the component following the conceptual design specifications.
+chain:
+  - Write comprehensive unit tests for all edge cases.
+  - Update the documentation and add usage examples.
+  - Run the test suite and fix any failures.
+---
+Conceptually design a React modal component with the following requirements: $ARGUMENTS
+```
+
+**Parallel: Multiple perspectives at once**
+
+```yaml
+---
+subtask: true
+parallel: brainstorm-solutions, research-prior-art
+return: Evaluate all ideas and create an implementation plan.
+---
+Identify the core problem in our auth flow.
+```
+
 ## Features
 
 ### 1. `return` - Command 'return' instructions or the old 'look again' trick.
@@ -101,7 +145,7 @@ All three inherit the main command's `$ARGUMENTS`.
 /mycommand main args || parallel1 args || parallel2 args
 ```
 
-## Each segment maps to a parallel command in order. Priority: **frontmatter args > pipe args > inherit main args**.
+Each segment maps to a parallel command in order. Priority: **frontmatter args > pipe args > inherit main args**.
 
 ### 3. `chain` - Sequential follow-up prompts
 
@@ -120,7 +164,7 @@ Find the bug in auth.ts
 
 Flow: Command → return prompt → LLM works → chain[0] fires → LLM works → chain[1] fires → ...
 
-## **Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
+**Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
 
 ### 4. Global fallback - 'Better' default for subtasks
 
@@ -148,50 +192,6 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 4. **OpenCode original** → "Summarize..." (if `replace_generic: false`)
 
 ---
-
-## Examples
-
-**Parallel: Same task, different models**
-
-```yaml
----
-description: multi-model ensemble, 3 models plan in parallel, best ideas unified
-agent: build
-model: github-copilot/gpt-5.2
-subtask: true
-parallel: plan-gemini, plan-opus
-return: Compare all 3 plans and validate each directly against the codebase. Pick the best ideas from each and create a unified implementation plan.
-chain:
-  - feed the implementation plan to a @review subagent, let's poke holes.
----
-Plan the implementation for the following feature: $ARGUMENTS
-```
-
-**Chain: Multi-step workflow**
-
-```yaml
----
-description: design, implement, test, document
-subtask: true
-return: Implement the component following the conceptual design specifications.
-chain:
-  - Write comprehensive unit tests for all edge cases.
-  - Update the documentation and add usage examples.
-  - Run the test suite and fix any failures.
----
-Conceptually design a React modal component with the following requirements: $ARGUMENTS
-```
-
-**Parallel: Multiple perspectives at once**
-
-```yaml
----
-subtask: true
-parallel: brainstorm-solutions, research-prior-art
-return: Evaluate all ideas and create an implementation plan.
----
-Identify the core problem in our auth flow.
-```
 
 ## License
 
