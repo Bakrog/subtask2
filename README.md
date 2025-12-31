@@ -63,8 +63,6 @@ Design the auth system for $ARGUMENTS
 - **Any additional** `return` fire sequentially after each LLM turn completes
 - **Commands** (starting with `/`) are executed as full commands with their own `parallel` and `return`
 
-**Note:** For non-subtask commands, requires opencode with `command.execute.before` hook (pending PR).
-
 ### 2. `parallel` - Run multiple subtasks concurrently ⚠️ **PENDING PR** (ignored for now)
 
 Spawn additional command subtasks alongside the main one:
