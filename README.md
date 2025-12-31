@@ -160,15 +160,15 @@ Design a new auth system for $ARGUMENTS
 /mycommand main args || parallel1 args || parallel2 args
 ```
 
-**Priority is** `pipe args > frontmatter args > inherit main args`
-
-**Tip:** If all commands share the same arguments, use the simple syntax:
+**Tip:** For all commands to inherit the main `$ARGUMENTS`, you can use a simple syntax:
 
 ```yaml
 parallel: research-docs, research-codebase, security-audit
 ```
 
-All three inherit the main command's `$ARGUMENTS`.
+#### Priority Order
+
+**pipe args > frontmatter args > inherit main args**
 
 ### 3. Global fallback - 'Better' default for subtasks
 
@@ -191,11 +191,6 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 #### Priority Order
 
 **`return` param > config `generic_return` > built-in default > opencode original**
-
-1. **`return` param** → Your specific instructions (highest priority)
-2. **Config `generic_return`** → Your custom fallback (if `replace_generic: true`)
-3. **Built-in default** → "Challenge and validate..." (if `replace_generic: true`)
-4. **OpenCode original** → "Summarize..." (if `replace_generic: false`)
 
 </details>
 
