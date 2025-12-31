@@ -28,7 +28,11 @@ function isValidConfig(obj: unknown): obj is Subtask2Config {
   if (typeof obj !== "object" || obj === null) return false;
   const cfg = obj as Record<string, unknown>;
   if (typeof cfg.replace_generic !== "boolean") return false;
-  if (cfg.generic_return !== undefined && typeof cfg.generic_return !== "string") return false;
+  if (
+    cfg.generic_return !== undefined &&
+    typeof cfg.generic_return !== "string"
+  )
+    return false;
   return true;
 }
 
@@ -100,16 +104,23 @@ function parseParallelItem(p: unknown): ParallelCommand | null {
 function parseParallelConfig(parallel: unknown): ParallelCommand[] {
   if (!parallel) return [];
   if (Array.isArray(parallel)) {
-    return parallel.map(parseParallelItem).filter((p): p is ParallelCommand => p !== null);
+    return parallel
+      .map(parseParallelItem)
+      .filter((p): p is ParallelCommand => p !== null);
   }
   if (typeof parallel === "string") {
     // Split by comma, parse each
-    return parallel.split(",").map(parseParallelItem).filter((p): p is ParallelCommand => p !== null);
+    return parallel
+      .split(",")
+      .map(parseParallelItem)
+      .filter((p): p is ParallelCommand => p !== null);
   }
   return [];
 }
 
-async function loadCommandFile(name: string): Promise<{content: string; path: string} | null> {
+async function loadCommandFile(
+  name: string
+): Promise<{content: string; path: string} | null> {
   const home = Bun.env.HOME ?? "";
   const dirs = [
     `${home}/.config/opencode/command`,
@@ -117,11 +128,22 @@ async function loadCommandFile(name: string): Promise<{content: string; path: st
   ];
 
   for (const dir of dirs) {
-    const path = `${dir}/${name}.md`;
+    // Try direct path first, then search subdirs
+    const directPath = `${dir}/${name}.md`;
     try {
-      const file = Bun.file(path);
+      const file = Bun.file(directPath);
       if (await file.exists()) {
-        return {content: await file.text(), path};
+        return {content: await file.text(), path: directPath};
+      }
+    } catch {}
+
+    // Search subdirs for name.md
+    try {
+      const glob = new Bun.Glob(`**/${name}.md`);
+      for await (const match of glob.scan(dir)) {
+        const fullPath = `${dir}/${match}`;
+        const content = await Bun.file(fullPath).text();
+        return {content, path: fullPath};
       }
     } catch {}
   }
@@ -146,52 +168,60 @@ async function flattenParallels(
   maxDepth: number = 5
 ): Promise<SubtaskPart[]> {
   if (depth > maxDepth) return [];
-  
+
   const parts: SubtaskPart[] = [];
-  
+
   for (let i = 0; i < parallels.length; i++) {
     const parallelCmd = parallels[i];
     if (visited.has(parallelCmd.command)) continue;
     visited.add(parallelCmd.command);
-    
+
     const cmdFile = await loadCommandFile(parallelCmd.command);
     if (!cmdFile) continue;
-    
+
     const fm = parseFrontmatter(cmdFile.content);
     let template = getTemplateBody(cmdFile.content);
-    
+
     // Priority: pipe args > frontmatter args > main args
     const args = parallelArgs[i] ?? parallelCmd.arguments ?? mainArgs;
     template = template.replace(/\$ARGUMENTS/g, args);
-    
+
     // Parse model string "provider/model" into {providerID, modelID}
     let model: {providerID: string; modelID: string} | undefined;
     if (typeof fm.model === "string" && fm.model.includes("/")) {
       const [providerID, ...rest] = fm.model.split("/");
       model = {providerID, modelID: rest.join("/")};
     }
-    
+
     parts.push({
       type: "subtask" as const,
       agent: (fm.agent as string) || "general",
       model,
-      description: (fm.description as string) || `Parallel: ${parallelCmd.command}`,
+      description:
+        (fm.description as string) || `Parallel: ${parallelCmd.command}`,
       command: parallelCmd.command,
       prompt: template,
     });
-    
+
     // Recursively flatten nested parallels
     const nestedParallel = fm.parallel;
     if (nestedParallel) {
       const nestedArr = parseParallelConfig(nestedParallel);
-      
+
       if (nestedArr.length) {
-        const nestedParts = await flattenParallels(nestedArr, args, [], visited, depth + 1, maxDepth);
+        const nestedParts = await flattenParallels(
+          nestedArr,
+          args,
+          [],
+          visited,
+          depth + 1,
+          maxDepth
+        );
         parts.push(...nestedParts);
       }
     }
   }
-  
+
   return parts;
 }
 
@@ -205,13 +235,17 @@ async function buildManifest(): Promise<Record<string, CommandConfig>> {
 
   for (const dir of dirs) {
     try {
-      const glob = new Bun.Glob("*.md");
+      const glob = new Bun.Glob("**/*.md");
       for await (const file of glob.scan(dir)) {
-        const name = file.replace(/\.md$/, "");
+        const name = file.replace(/\.md$/, "").split("/").pop()!;
         const content = await Bun.file(`${dir}/${file}`).text();
         const fm = parseFrontmatter(content);
         const returnVal = fm.return;
-        const returnArr = returnVal ? (Array.isArray(returnVal) ? returnVal : [returnVal]) : [];
+        const returnArr = returnVal
+          ? Array.isArray(returnVal)
+            ? returnVal
+            : [returnVal]
+          : [];
         const parallelArr = parseParallelConfig(fm.parallel);
 
         manifest[name] = {
@@ -235,6 +269,7 @@ const returnState = new Map<string, string[]>();
 const pendingReturns = new Map<string, string>();
 const pendingNonSubtaskReturns = new Map<string, string[]>();
 const returnArgsState = new Map<string, string[]>(); // args for /commands in return
+const executedReturns = new Set<string>(); // dedup check
 let hasActiveSubtask = false;
 
 const OPENCODE_GENERIC =
@@ -246,24 +281,27 @@ const plugin: Plugin = async (ctx) => {
   client = ctx.client;
 
   return {
-    "command.execute.before": async (input: {command: string; sessionID: string; arguments: string}, output: {parts: any[]}) => {
+    "command.execute.before": async (
+      input: {command: string; sessionID: string; arguments: string},
+      output: {parts: any[]}
+    ) => {
       const cmd = input.command;
       const config = configs[cmd];
-      
+
       // Parse pipe-separated arguments: main || parallel1 || parallel2 || return-cmd1 || return-cmd2
       const argSegments = input.arguments.split("||").map((s) => s.trim());
       const mainArgs = argSegments[0] || "";
-      
+
       // Count how many parallels we have to know where return args start
       const parallelCount = config?.parallel?.length ?? 0;
       const parallelArgs = argSegments.slice(1, 1 + parallelCount);
       const returnArgs = argSegments.slice(1 + parallelCount);
-      
+
       // Store return args for later use in executeReturn
       if (returnArgs.length) {
         returnArgsState.set(input.sessionID, returnArgs);
       }
-      
+
       // Fix main command's parts to use only mainArgs (not the full pipe string)
       if (argSegments.length > 1) {
         for (const part of output.parts) {
@@ -275,17 +313,23 @@ const plugin: Plugin = async (ctx) => {
           }
         }
       }
-      
+
       // Track non-subtask commands with return for later injection
-      const hasSubtaskPart = output.parts.some((p: any) => p.type === "subtask");
+      const hasSubtaskPart = output.parts.some(
+        (p: any) => p.type === "subtask"
+      );
       if (!hasSubtaskPart && config?.return?.length) {
         pendingNonSubtaskReturns.set(input.sessionID, [...config.return]);
       }
-      
+
       if (!config?.parallel?.length) return;
 
       // Recursively flatten all nested parallels
-      const parallelParts = await flattenParallels(config.parallel, mainArgs, parallelArgs);
+      const parallelParts = await flattenParallels(
+        config.parallel,
+        mainArgs,
+        parallelArgs
+      );
       output.parts.push(...parallelParts);
     },
 
@@ -334,11 +378,16 @@ const plugin: Plugin = async (ctx) => {
     "experimental.text.complete": async (input) => {
       // Helper to execute a return item (command or prompt)
       async function executeReturn(item: string, sessionID: string) {
+        // Dedup check to prevent double execution
+        const key = `${sessionID}:${item}`;
+        if (executedReturns.has(key)) return;
+        executedReturns.add(key);
+
         if (item.startsWith("/")) {
           // Parse /command args syntax
           const [cmdName, ...argParts] = item.slice(1).split(/\s+/);
           let args = argParts.join(" ");
-          
+
           // Check if we have piped args for this return command
           const returnArgs = returnArgsState.get(sessionID);
           if (returnArgs?.length) {
@@ -347,10 +396,17 @@ const plugin: Plugin = async (ctx) => {
             if (pipeArg) args = pipeArg; // Pipe args override inline args
           }
           
-          await client.session.command({
-            path: {id: sessionID},
-            body: {command: cmdName, arguments: args},
-          });
+          try {
+            await client.session.command({
+              path: {id: sessionID},
+              body: {command: cmdName, arguments: args || ""},
+            });
+          } catch (e) {
+            console.error(
+              `[subtask2] Failed to execute return command ${cmdName}:`,
+              e
+            );
+          }
         } else {
           await client.session.promptAsync({
             path: {id: sessionID},
@@ -363,8 +419,10 @@ const plugin: Plugin = async (ctx) => {
       const pendingReturn = pendingNonSubtaskReturns.get(input.sessionID);
       if (pendingReturn?.length && client) {
         const next = pendingReturn.shift()!;
-        if (!pendingReturn.length) pendingNonSubtaskReturns.delete(input.sessionID);
-        await executeReturn(next, input.sessionID);
+        if (!pendingReturn.length)
+          pendingNonSubtaskReturns.delete(input.sessionID);
+        // Execute in background to avoid blocking turn completion
+        executeReturn(next, input.sessionID).catch(console.error);
         return;
       }
 
@@ -373,7 +431,8 @@ const plugin: Plugin = async (ctx) => {
       if (!remaining?.length || !client) return;
       const next = remaining.shift()!;
       if (!remaining.length) returnState.delete(input.sessionID);
-      await executeReturn(next, input.sessionID);
+      // Execute in background to avoid blocking turn completion
+      executeReturn(next, input.sessionID).catch(console.error);
     },
   };
 };
