@@ -78,9 +78,9 @@ Conceptually design a React modal component with the following requirements
 <details>
 <summary><strong>Feature documentation</strong> (click to expand)</summary>
 
-### 1. `return` - Command return instructions (supports chaining)
+### 1. `return` - Command return instructions or the old 'look again' trick
 
-Tell the main agent exactly what to do after a command completes:
+Tell the main agent exactly what to do after a command completes, supports chaining
 
 ```yaml
 ---
