@@ -4,10 +4,16 @@
 
 This plugins affects how opencode handles slash commands with additional frontmatter parameters and enables parallel command execution. In other words, super powers for commands that helps steer and keep the agentic loop alive.
 
-- `return` send instructions to main session on **command** or **subtask(s)** results, can be chained
-- `parallel` run subtasks concurrently (accepts arguments)
+### Key features
 
-⚠️ Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` and `subtask:false` command features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
+- `return` instruct the main session on **command** or **subtask(s)** results - _can be chained_
+- `parallel` run subtasks concurrently - _only parent's `return` applies when all are done_
+  - `command` extra command to run along the main one - _forced into a subtask_
+  - `arguments` pass arguments with command frontmatter or `||` message pipe
+
+#### ⚠️ Pending PR
+
+Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` and `subtask:false` command features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
 ---
 
