@@ -2,9 +2,7 @@
 
 Give super powers to your slash commands with `@openspoon/subtask2`
 
-## Installation
-
-Add subtask2 to your opencode config plugin array
+To install the plugin, add subtask2 to your opencode config plugin array
 
 ```json
 {
