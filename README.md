@@ -166,7 +166,7 @@ Design a new auth system for $ARGUMENTS
 parallel: research-docs, research-codebase, security-audit
 ```
 
-#### Order pipe args > frontmatter args > inherit main args
+#### Priority: pipe args > frontmatter args > inherit main args
 
 ### 3. Global fallback - 'Better' default for subtasks
 
@@ -186,7 +186,7 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 }
 ```
 
-#### Order `return` param > config `generic_return` > built-in default > opencode original
+#### Priority: `return` param > config `generic_return` > built-in default > opencode original
 
 </details>
 
