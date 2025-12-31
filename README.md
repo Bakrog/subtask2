@@ -21,10 +21,8 @@ This plugins affects how opencode handles commands with additional frontmatter p
 
 ⚠️ Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` and non-subtask command features, as well as proper model inheritance (piping the right model and agent to the right subtask) to work.
 
-## Examples
-
 <details>
-<summary><strong>Checkout some use cases</strong> (click to expand)</summary>
+<summary><strong>Some examples</strong> (click to expand)</summary>
 
 **Parallel subtask with different models (A/B plan comparison)**
 
@@ -87,9 +85,8 @@ Conceptually design a React modal component with the following requirements
 
 </details>
 
----
-
-## Features
+<details>
+<summary><strong>Feature documentation</strong> (click to expand)</summary>
 
 ### 1. `return` - Command return instructions (supports chaining)
 
@@ -208,8 +205,8 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 3. **Built-in default** → "Challenge and validate..." (if `replace_generic: true`)
 4. **OpenCode original** → "Summarize..." (if `replace_generic: false`)
 
----
+</details>
 
-## License
+#### License
 
 MIT
