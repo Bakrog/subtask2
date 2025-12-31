@@ -190,7 +190,7 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 
 #### Priority Order
 
-``return` param > config `generic_return` > `
+**`return` param > config `generic_return` > built-in default > opencode original**
 
 1. **`return` param** → Your specific instructions (highest priority)
 2. **Config `generic_return`** → Your custom fallback (if `replace_generic: true`)
