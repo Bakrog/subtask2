@@ -176,21 +176,23 @@ parallel: research-docs, research-codebase, security-audit
 
 #### Priority: pipe args > frontmatter args > inherit main args
 
-### 3. Global fallback - 'Better' default for subtasks
+### 3. Global `return` fallback and custom default for subtasks
 
-By default opencode injects a prompt in the main session once a **subtask** is completed.
+Once a **subtask** is completed, opencode injects a prompt in the main session and tells the agent to "summarize" the subtask result
 
-For `subtask: true` commands without a `return`, this plugin replaces the opencode generic "summarize" message with by default: "Challenge and validate the task output. Verify assumptions, identify gaps or errors, then continue with the next logical step."
+For `subtask: true` commands, this plugin replaces the opencode generic "summarize" message with the `return` prompt. If undefined and `"replace_generic": true`, subtask2 uses:
+
+> Challenge and validate the task output. Verify assumptions, identify gaps or errors, then continue with the next logical step.
 
 Configure in `~/.config/opencode/subtask2.jsonc`:
 
 ```jsonc
 {
   // Replace generic prompt when no 'return' is specified
-  "replace_generic": true,
+  "replace_generic": true, // defaults to true
 
   // Custom fallback (optional - has built-in default)
-  "generic_return": "your custom return prompt here"
+  "generic_return": "custom return prompt"
 }
 ```
 
