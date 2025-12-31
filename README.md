@@ -126,7 +126,7 @@ This runs 3 subtasks in parallel:
 
 When ALL complete, the main agent gets the `return` prompt.
 
-#### With custom arguments per command
+### With custom arguments per command
 
 ```bash
 /mycommand main args || parallel1 args || parallel2 args
