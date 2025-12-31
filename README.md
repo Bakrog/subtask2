@@ -176,7 +176,7 @@ parallel: research-docs, research-codebase, security-audit
 
 #### Priority: pipe args > frontmatter args > inherit main args
 
-### 3. Global `return` fallback and custom default for subtasks
+### 3. Subtask `return` fallback and custom defaults
 
 Once a **subtask** is completed, opencode injects a prompt in the main session and tells the agent to "summarize" the subtask result
 
