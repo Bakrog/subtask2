@@ -248,7 +248,21 @@ const plugin: Plugin = async (ctx) => {
       if (input.tool !== "task") return;
       hasActiveSubtask = true;
       const cmd = output.args?.command;
-      const mainCmd = sessionMainCommand.get(input.sessionID);
+      let mainCmd = sessionMainCommand.get(input.sessionID);
+      
+      // If mainCmd is not set (command.execute.before didn't fire - no PR), 
+      // set the first subtask command as the main command
+      if (!mainCmd && cmd && configs[cmd]) {
+        sessionMainCommand.set(input.sessionID, cmd);
+        mainCmd = cmd;
+        log(`tool.execute.before: no mainCmd set, setting to ${cmd} (fallback for non-PR)`);
+        
+        // Also set up return state since command.execute.before didn't run
+        if (configs[cmd].return.length > 1) {
+          returnState.set(input.sessionID, [...configs[cmd].return.slice(1)]);
+        }
+      }
+      
       log(
         `tool.execute.before: cmd=${cmd}, mainCmd=${mainCmd}, sessionID=${input.sessionID}`
       );
