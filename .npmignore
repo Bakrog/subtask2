@@ -1,5 +1,8 @@
 .opencode/
 .git/
+logs/
+media/
+src/
 .gitignore
 *.ts
 !*.d.ts
