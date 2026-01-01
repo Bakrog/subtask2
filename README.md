@@ -9,10 +9,8 @@ This plugin affects how opencode handles slash commands with additional frontmat
 ### Key features
 
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
-- `parallel` run subtasks concurrently - _pending PR merge_
+- `parallel` run subtasks concurrently - _pending PR merge ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe
-
-#### ⚠️ Pending PR merge
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
