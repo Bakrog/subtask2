@@ -11,7 +11,7 @@ import {
   getTemplateBody,
   parseParallelConfig,
 } from "./src/parser";
-import {loadCommandFile, buildManifest} from "./src/commands";
+import {loadCommandFile, buildManifest, getConfig} from "./src/commands";
 import {log, clearLog} from "./src/logger";
 
 // Session state
@@ -112,11 +112,19 @@ async function flattenParallels(
 }
 
 const plugin: Plugin = async (ctx) => {
+  clearLog();  // Clear log FIRST
   configs = await buildManifest();
   pluginConfig = await loadConfig();
   client = ctx.client;
-  clearLog();
-  log("Plugin initialized, configs:", Object.keys(configs));
+  
+  // Debug: log all keys including path keys
+  const allKeys = Object.keys(configs);
+  log("Plugin initialized, ALL config keys:", allKeys);
+  log("Config key count:", allKeys.length);
+  
+  // Check if path-style keys exist
+  const pathKeys = allKeys.filter(k => k.includes('/'));
+  log("Path-style keys found:", pathKeys);
 
   // Helper to execute a return item (command or prompt)
   async function executeReturn(item: string, sessionID: string) {
@@ -136,13 +144,20 @@ const plugin: Plugin = async (ctx) => {
       let args = argParts.join(" ");
       const inlineArgs = args;
 
+      // Find the path key for this command (OpenCode needs the full path for subfolder commands)
+      // Look for a path-style key that ends with this command name
+      const allKeys = Object.keys(configs);
+      const pathKey = allKeys.find(k => k.includes('/') && k.endsWith('/' + cmdName)) || cmdName;
+      log(`executeReturn: cmdName="${cmdName}", resolved pathKey="${pathKey}"`);
+
       // Log the chained command's frontmatter
-      if (configs[cmdName]) {
+      const chainedConfig = getConfig(configs, cmdName);
+      if (chainedConfig) {
         log(`executeReturn: chained command "${cmdName}" config:`, {
-          return: configs[cmdName].return,
-          parallel: configs[cmdName].parallel,
-          agent: configs[cmdName].agent,
-          description: configs[cmdName].description,
+          return: chainedConfig.return,
+          parallel: chainedConfig.parallel,
+          agent: chainedConfig.agent,
+          description: chainedConfig.description,
         });
       } else {
         log(`executeReturn: command "${cmdName}" not found in configs`);
@@ -166,18 +181,19 @@ const plugin: Plugin = async (ctx) => {
 
       // Update main command to this chained command so its own return is processed
       log(
-        `executeReturn: setting mainCmd to ${cmdName} for session ${sessionID}`
+        `executeReturn: setting mainCmd to ${pathKey} for session ${sessionID}`
       );
-      sessionMainCommand.set(sessionID, cmdName);
+      sessionMainCommand.set(sessionID, pathKey);
 
       try {
-        await client.session.command({
+        log(`executeReturn: calling client.session.command for ${pathKey} in session ${sessionID}`);
+        const result = await client.session.command({
           path: {id: sessionID},
-          body: {command: cmdName, arguments: args || ""},
+          body: {command: pathKey, arguments: args || ""},
         });
-        log(`executeReturn: command ${cmdName} completed`);
+        log(`executeReturn: command ${pathKey} completed, result:`, result);
       } catch (e) {
-        log(`executeReturn: command ${cmdName} FAILED:`, e);
+        log(`executeReturn: command ${pathKey} FAILED:`, e);
       }
     } else {
       log(`executeReturn: sending prompt: ${item.substring(0, 50)}...`);
@@ -194,7 +210,7 @@ const plugin: Plugin = async (ctx) => {
       output: {parts: any[]}
     ) => {
       const cmd = input.command;
-      const config = configs[cmd];
+      const config = getConfig(configs, cmd);
       sessionMainCommand.set(input.sessionID, cmd);
       log(
         `command.execute.before: cmd=${cmd}, sessionID=${input.sessionID}, hasConfig=${!!config}`
@@ -265,17 +281,18 @@ const plugin: Plugin = async (ctx) => {
       
       // If mainCmd is not set (command.execute.before didn't fire - no PR), 
       // set the first subtask command as the main command
-      if (!mainCmd && cmd && configs[cmd]) {
+      if (!mainCmd && cmd && getConfig(configs, cmd)) {
         sessionMainCommand.set(input.sessionID, cmd);
         mainCmd = cmd;
         log(`tool.execute.before: no mainCmd set, setting to ${cmd} (fallback for non-PR)`);
         
         // Log the command's frontmatter for debugging
+        const cmdConfig = getConfig(configs, cmd)!;
         log(`Command ${cmd} config:`, {
-          return: configs[cmd].return,
-          parallel: configs[cmd].parallel,
-          agent: configs[cmd].agent,
-          description: configs[cmd].description,
+          return: cmdConfig.return,
+          parallel: cmdConfig.parallel,
+          agent: cmdConfig.agent,
+          description: cmdConfig.description,
         });
         
         // Parse piped args from prompt if present (fallback for non-PR)
@@ -298,8 +315,8 @@ const plugin: Plugin = async (ctx) => {
         }
         
         // Also set up return state since command.execute.before didn't run
-        if (configs[cmd].return.length > 1) {
-          returnState.set(input.sessionID, [...configs[cmd].return.slice(1)]);
+        if (cmdConfig.return.length > 1) {
+          returnState.set(input.sessionID, [...cmdConfig.return.slice(1)]);
         }
       }
       
@@ -309,14 +326,15 @@ const plugin: Plugin = async (ctx) => {
       log(`tool.execute.before: prompt preview: "${(prompt || "").substring(0, 150)}..."`);
       log(`tool.execute.before: output.args:`, output.args);
 
-      if (cmd && configs[cmd]) {
+      if (cmd && getConfig(configs, cmd)) {
+        const cmdConfig = getConfig(configs, cmd)!;
         // Log command frontmatter for all commands passing through
         if (cmd !== mainCmd) {
           log(`tool.execute.before: command "${cmd}" config:`, {
-            return: configs[cmd].return,
-            parallel: configs[cmd].parallel,
-            agent: configs[cmd].agent,
-            description: configs[cmd].description,
+            return: cmdConfig.return,
+            parallel: cmdConfig.parallel,
+            agent: cmdConfig.agent,
+            description: cmdConfig.description,
           });
         }
         
@@ -326,8 +344,8 @@ const plugin: Plugin = async (ctx) => {
 
         callState.set(input.callID, cmd);
 
-        if (cmd === mainCmd && configs[cmd].return.length > 1) {
-          returnState.set(input.sessionID, [...configs[cmd].return.slice(1)]);
+        if (cmd === mainCmd && cmdConfig.return.length > 1) {
+          returnState.set(input.sessionID, [...cmdConfig.return.slice(1)]);
         }
       }
     },
@@ -338,18 +356,19 @@ const plugin: Plugin = async (ctx) => {
       callState.delete(input.callID);
 
       const mainCmd = sessionMainCommand.get(input.sessionID);
+      const cmdConfig = cmd ? getConfig(configs, cmd) : undefined;
 
       log(
         `tool.execute.after: cmd=${cmd}, mainCmd=${mainCmd}, hasReturn=${!!(
-          cmd && configs[cmd]?.return?.length
+          cmd && cmdConfig?.return?.length
         )}`
       );
 
-      if (cmd && cmd === mainCmd && configs[cmd]?.return?.length) {
+      if (cmd && cmd === mainCmd && cmdConfig?.return?.length) {
         log(
-          `Setting pendingReturn for session ${input.sessionID}: ${configs[cmd].return[0]}`
+          `Setting pendingReturn for session ${input.sessionID}: ${cmdConfig.return[0]}`
         );
-        pendingReturns.set(input.sessionID, configs[cmd].return[0]);
+        pendingReturns.set(input.sessionID, cmdConfig.return[0]);
       }
     },
 
@@ -420,10 +439,16 @@ const plugin: Plugin = async (ctx) => {
     },
 
     "experimental.text.complete": async (input) => {
+      log(`text.complete called: sessionID=${input.sessionID}`);
+      log(`text.complete: returnState keys=`, Array.from(returnState.keys()));
+      log(`text.complete: returnState for session=`, returnState.get(input.sessionID));
+      log(`text.complete: pendingNonSubtaskReturns=`, pendingNonSubtaskReturns.get(input.sessionID));
+      
       // Handle non-subtask command returns
       const pendingReturn = pendingNonSubtaskReturns.get(input.sessionID);
       if (pendingReturn?.length && client) {
         const next = pendingReturn.shift()!;
+        log(`text.complete: executing pendingNonSubtaskReturn: ${next}`);
         if (!pendingReturn.length)
           pendingNonSubtaskReturns.delete(input.sessionID);
         executeReturn(next, input.sessionID).catch(console.error);
@@ -432,8 +457,12 @@ const plugin: Plugin = async (ctx) => {
 
       // Handle remaining returns
       const remaining = returnState.get(input.sessionID);
-      if (!remaining?.length || !client) return;
+      if (!remaining?.length || !client) {
+        log(`text.complete: no remaining returns or no client`);
+        return;
+      }
       const next = remaining.shift()!;
+      log(`text.complete: executing next return: ${next}`);
       if (!remaining.length) returnState.delete(input.sessionID);
       executeReturn(next, input.sessionID).catch(console.error);
     },
