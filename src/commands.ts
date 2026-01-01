@@ -9,39 +9,21 @@ export function getConfig(
   configs: Record<string, CommandConfig>,
   cmd: string
 ): CommandConfig | undefined {
-  log(`getConfig called with cmd="${cmd}", available keys:`, Object.keys(configs));
-  
   // Direct match
-  if (configs[cmd]) {
-    log(`getConfig: direct match found for "${cmd}"`);
-    return configs[cmd];
-  }
+  if (configs[cmd]) return configs[cmd];
   
   // Try filename-only (last segment of path)
   const filenameOnly = cmd.split("/").pop()!;
-  log(`getConfig: trying filenameOnly="${filenameOnly}"`);
-  if (configs[filenameOnly]) {
-    log(`getConfig: filenameOnly match found`);
-    return configs[filenameOnly];
-  }
+  if (configs[filenameOnly]) return configs[filenameOnly];
   
-  // Try with slashes replaced by hyphens (in case opencode flattens paths)
+  // Try with slashes replaced by hyphens
   const hyphenated = cmd.replace(/\//g, "-");
-  log(`getConfig: trying hyphenated="${hyphenated}"`);
-  if (configs[hyphenated]) {
-    log(`getConfig: hyphenated match found`);
-    return configs[hyphenated];
-  }
+  if (configs[hyphenated]) return configs[hyphenated];
   
   // Try converting hyphens back to slashes
   const slashed = cmd.replace(/-/g, "/");
-  log(`getConfig: trying slashed="${slashed}"`);
-  if (configs[slashed]) {
-    log(`getConfig: slashed match found`);
-    return configs[slashed];
-  }
+  if (configs[slashed]) return configs[slashed];
   
-  log(`getConfig: NO MATCH FOUND for "${cmd}"`);
   return undefined;
 }
 
@@ -85,15 +67,12 @@ export async function buildManifest(): Promise<Record<string, CommandConfig>> {
     `${Bun.env.PWD ?? "."}/.opencode/command`,
   ];
 
-  log(`buildManifest: starting, dirs=${JSON.stringify(dirs)}`);
-
   for (const dir of dirs) {
     try {
       const glob = new Bun.Glob("**/*.md");
       for await (const file of glob.scan(dir)) {
         const name = file.replace(/\.md$/, "").split("/").pop()!;
         const pathKey = file.replace(/\.md$/, "");
-        log(`buildManifest: file="${file}", name="${name}", pathKey="${pathKey}"`);
         
         const content = await Bun.file(`${dir}/${file}`).text();
         const fm = parseFrontmatter(content);
@@ -116,16 +95,14 @@ export async function buildManifest(): Promise<Record<string, CommandConfig>> {
         // Store with filename-only key
         manifest[name] = config;
         
-        // Also store with full relative path (without .md) for subfolder commands
+        // Also store with full relative path for subfolder commands
         if (pathKey !== name) {
           manifest[pathKey] = config;
-          log(`buildManifest: ADDED PATH KEY "${pathKey}"`);
         }
       }
     } catch (e) {
-      log(`buildManifest: error scanning ${dir}:`, e);
+      // Ignore errors scanning directories that don't exist
     }
   }
-  log(`buildManifest: FINAL KEYS: ${JSON.stringify(Object.keys(manifest))}`);
   return manifest;
 }
