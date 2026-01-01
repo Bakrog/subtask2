@@ -4,15 +4,15 @@ import type {
   Subtask2Config,
   ParallelCommand,
   SubtaskPart,
-} from "./types";
-import {loadConfig, DEFAULT_PROMPT} from "./config";
+} from "./src/types";
+import {loadConfig, DEFAULT_PROMPT} from "./src/config";
 import {
   parseFrontmatter,
   getTemplateBody,
   parseParallelConfig,
-} from "./parser";
-import {loadCommandFile, buildManifest} from "./commands";
-import {log, clearLog} from "./logger";
+} from "./src/parser";
+import {loadCommandFile, buildManifest} from "./src/commands";
+import {log, clearLog} from "./src/logger";
 
 // Session state
 let configs: Record<string, CommandConfig> = {};
