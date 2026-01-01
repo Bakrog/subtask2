@@ -1,5 +1,3 @@
-![subtask2 header](media/header.webp)
-
 # A stronger opencode /command handler
 
 ### TL:DR - More agency, control and capabilities for commands
@@ -8,13 +6,15 @@ This plugin affects how opencode handles slash commands with additional frontmat
 
 `@openspoon/subtask2@latest`
 
+![subtask2 header](media/header.webp)
+
+![citation](media/quote.webp)
+
 ### Key features
 
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
 - `parallel` run subtasks concurrently - _pending PR merge ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe
-
-![citation](media/quote.webp)
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
