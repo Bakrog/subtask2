@@ -136,6 +136,18 @@ const plugin: Plugin = async (ctx) => {
       let args = argParts.join(" ");
       const inlineArgs = args;
 
+      // Log the chained command's frontmatter
+      if (configs[cmdName]) {
+        log(`executeReturn: chained command "${cmdName}" config:`, {
+          return: configs[cmdName].return,
+          parallel: configs[cmdName].parallel,
+          agent: configs[cmdName].agent,
+          description: configs[cmdName].description,
+        });
+      } else {
+        log(`executeReturn: command "${cmdName}" not found in configs`);
+      }
+
       // Check if we have piped args for this return command
       const returnArgs = returnArgsState.get(sessionID);
       log(
@@ -298,6 +310,16 @@ const plugin: Plugin = async (ctx) => {
       log(`tool.execute.before: output.args:`, output.args);
 
       if (cmd && configs[cmd]) {
+        // Log command frontmatter for all commands passing through
+        if (cmd !== mainCmd) {
+          log(`tool.execute.before: command "${cmd}" config:`, {
+            return: configs[cmd].return,
+            parallel: configs[cmd].parallel,
+            agent: configs[cmd].agent,
+            description: configs[cmd].description,
+          });
+        }
+        
         if (cmd === mainCmd) {
           pendingNonSubtaskReturns.delete(input.sessionID);
         }
