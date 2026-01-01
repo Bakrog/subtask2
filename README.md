@@ -2,8 +2,6 @@
 
 # A stronger opencode /command handler
 
-![citation](media/quote.webp)
-
 ### TL:DR - More agency, control and capabilities for commands
 
 This plugin affects how opencode handles slash commands with additional frontmatter parameters and enables chaining as well as parallel command execution. It's simple to use and designed to allow better orchestration, steerability and lifespan of the agentic loop. Compose as simple or complex a workflow as you want. If you already know opencode commands, you'll be right at home.
@@ -15,6 +13,8 @@ This plugin affects how opencode handles slash commands with additional frontmat
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
 - `parallel` run subtasks concurrently - _pending PR merge ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe
+
+![citation](media/quote.webp)
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
