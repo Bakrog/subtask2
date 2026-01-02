@@ -1,10 +1,10 @@
 ## A stronger opencode /command handler
 
-Subtask2 extends opencode commands into a powerful orchestration system. Instead of giving you an opinionated monster like some plugins do, it lets you easily build your own (but simple is fine too)
+Subtask2 extends opencode commands into a powerful orchestration system. Instead of giving you an opinionated monster like some plugins do, it lets you easily build your own (but simple is fine too).
 
 ![citation](media/quote.webp)
 
-### TL:DR
+### TL:DR - Less entropic agentic loop
 
 This plugin allows your `/commands` to:
 
