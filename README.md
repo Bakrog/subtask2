@@ -17,6 +17,7 @@ Compose simple or complex workflows. If you already know opencode commands, you'
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
 - `parallel` run subtasks concurrently - _pending PR merge ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe
+- `$SESSION[n]` pipe the last N conversation turns into your command
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
@@ -153,6 +154,50 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 ```
 
 #### Priority: `return` param > config `generic_return` > built-in default > opencode original
+
+### 4. `$SESSION[n]` - Reference previous conversation turns
+
+Use `$SESSION[n]` to inject the last N conversation turns (user + assistant messages) into your command. This is powerful for commands that need context from the ongoing conversation.
+
+```yaml
+---
+description: summarize our conversation so far
+subtask: true
+---
+Review the following conversation and provide a concise summary:
+
+$SESSION[10]
+```
+
+**Usage in arguments:**
+
+```bash
+/my-command analyze this $SESSION[5]
+```
+
+The syntax:
+- `$SESSION[12]` - last 12 messages (turns, not parts)
+- Each turn includes both user input and assistant response with all text parts
+
+**Format output:**
+
+```
+=== USER ===
+What's the best way to implement auth?
+
+=== ASSISTANT ===
+I'd recommend using JWT tokens with...
+
+=== USER ===
+Can you show me an example?
+...
+```
+
+Works in:
+- Command body templates
+- Command arguments  
+- Parallel command prompts
+- Piped arguments (`||`)
 
 </details>
 

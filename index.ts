@@ -10,6 +10,9 @@ import {
   parseFrontmatter,
   getTemplateBody,
   parseParallelConfig,
+  extractSessionReferences,
+  hasSessionReferences,
+  replaceSessionReferences,
 } from "./src/parser";
 import {loadCommandFile, buildManifest, getConfig} from "./src/commands";
 import {log, clearLog} from "./src/logger";
@@ -26,10 +29,124 @@ const pipedArgsQueue = new Map<string, string[]>();
 const returnArgsState = pipedArgsQueue; // alias for backward compat
 const sessionMainCommand = new Map<string, string>();
 const executedReturns = new Set<string>();
+// Track parent session for commands called via executeReturn
+// Simple variable: set before command call, used by tool.execute.before
+let pendingParentSession: string | null = null;
 let hasActiveSubtask = false;
 
 const OPENCODE_GENERIC =
   "Summarize the task tool output above and continue with your task.";
+
+/**
+ * Fetch and format the last N messages from a session
+ * Returns formatted text of the conversation turns
+ */
+async function fetchSessionMessages(
+  sessionID: string,
+  count: number
+): Promise<string> {
+  if (!client) {
+    log("fetchSessionMessages: no client available");
+    return "[SESSION: client not available]";
+  }
+
+  try {
+    const result = await client.session.messages({
+      path: {id: sessionID},
+    });
+
+    const messages = result.data;
+    log(`fetchSessionMessages: got ${messages?.length ?? 0} messages from ${sessionID}`);
+    
+    if (!messages?.length) {
+      return "[SESSION: no messages found]";
+    }
+
+    // Log all messages for debugging
+    log(`All messages:`, messages.map((m: any, i: number) => ({
+      idx: i,
+      role: m.info.role,
+      partsCount: m.parts?.length,
+      textParts: m.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text?.substring(0, 30))
+    })));
+
+    // Filter out trailing empty messages (from current command being initiated)
+    // A message is "empty" if it has no text parts with content
+    let effectiveMessages = messages;
+    while (effectiveMessages.length > 0) {
+      const last = effectiveMessages[effectiveMessages.length - 1];
+      const hasContent = last.parts?.some((p: any) => 
+        (p.type === "text" && p.text?.trim()) || 
+        (p.type === "tool" && p.state?.status === "completed" && p.state?.output)
+      );
+      if (!hasContent) {
+        effectiveMessages = effectiveMessages.slice(0, -1);
+      } else {
+        break;
+      }
+    }
+    log(`After filtering empty trailing messages: ${effectiveMessages.length} (was ${messages.length})`);
+
+    // Get the last N messages (full turns)
+    const lastMessages = effectiveMessages.slice(-count);
+    log(`Using last ${count} messages`);
+
+    // Format each message with its parts
+    const formatted = lastMessages.map((msg: any) => {
+      const role = msg.info.role.toUpperCase();
+      const parts: string[] = [];
+
+      for (const part of msg.parts) {
+        if (part.type === "text" && part.text) {
+          parts.push(part.text);
+        } else if (part.type === "tool" && part.state?.status === "completed") {
+          // Include completed tool results
+          const toolName = part.tool;
+          const output = part.state.output;
+          if (output && typeof output === "string" && output.length < 2000) {
+            parts.push(`[Tool: ${toolName}]\n${output}`);
+          } else {
+            parts.push(`[Tool: ${toolName} - output truncated]`);
+          }
+        }
+      }
+
+      return `--- ${role} ---\n${parts.join("\n")}`;
+    });
+
+    return formatted.join("\n\n");
+  } catch (e) {
+    log("fetchSessionMessages error:", e);
+    return `[SESSION: error fetching messages - ${e}]`;
+  }
+}
+
+/**
+ * Process a string and replace all $SESSION[n] references with actual session content
+ */
+async function resolveSessionReferences(
+  text: string,
+  sessionID: string
+): Promise<string> {
+  if (!hasSessionReferences(text)) {
+    return text;
+  }
+
+  const refs = extractSessionReferences(text);
+  if (!refs.length) return text;
+
+  // Dedupe by count to avoid fetching same data multiple times
+  const uniqueCounts = [...new Set(refs.map((r) => r.count))];
+  const replacements = new Map<string, string>();
+
+  for (const count of uniqueCounts) {
+    const content = await fetchSessionMessages(sessionID, count);
+    replacements.set(`$SESSION[${count}]`, content);
+    log(`Resolved $SESSION[${count}]: ${content.length} chars`);
+  }
+
+  return replaceSessionReferences(text, replacements);
+}
 
 async function flattenParallels(
   parallels: ParallelCommand[],
@@ -71,6 +188,12 @@ async function flattenParallels(
       `Parallel ${parallelCmd.command}: using args="${args}" (pipeArg=${pipeArg}, fmArg=${parallelCmd.arguments}, mainArgs=${mainArgs})`
     );
     template = template.replace(/\$ARGUMENTS/g, args);
+
+    // Resolve $SESSION[n] references in the template
+    if (hasSessionReferences(template)) {
+      template = await resolveSessionReferences(template, sessionID);
+      log(`Parallel ${parallelCmd.command}: resolved $SESSION refs`);
+    }
 
     // Parse model string "provider/model" into {providerID, modelID}
     let model: {providerID: string; modelID: string} | undefined;
@@ -144,12 +267,10 @@ const plugin: Plugin = async (ctx) => {
         if (pipeArg) args = pipeArg;
       }
 
-      log(`executeReturn: /${cmdName} -> ${pathKey} args="${args}"`, 
-        getConfig(configs, cmdName) ? {
-          return: getConfig(configs, cmdName)!.return,
-          parallel: getConfig(configs, cmdName)!.parallel.map(p => p.command)
-        } : undefined);
+      log(`executeReturn: /${cmdName} -> ${pathKey} args="${args}" (parent=${sessionID})`);
       sessionMainCommand.set(sessionID, pathKey);
+      // Set parent session for $SESSION resolution - will be consumed by tool.execute.before
+      pendingParentSession = sessionID;
 
       try {
         await client.session.command({
@@ -184,12 +305,40 @@ const plugin: Plugin = async (ctx) => {
 
       // Parse pipe-separated arguments: main || arg1 || arg2 || arg3 ...
       const argSegments = input.arguments.split("||").map((s) => s.trim());
-      const mainArgs = argSegments[0] || "";
+      let mainArgs = argSegments[0] || "";
       const allPipedArgs = argSegments.slice(1);
 
       // Store piped args for consumption by parallels and return commands
       if (allPipedArgs.length) {
         pipedArgsQueue.set(input.sessionID, allPipedArgs);
+      }
+
+      // Resolve $SESSION[n] references in mainArgs
+      if (hasSessionReferences(mainArgs)) {
+        mainArgs = await resolveSessionReferences(mainArgs, input.sessionID);
+        log(`Resolved $SESSION in mainArgs: ${mainArgs.length} chars`);
+      }
+
+      // Resolve $SESSION[n] references in output parts
+      log(`Processing ${output.parts.length} parts for $SESSION refs`);
+      for (const part of output.parts) {
+        log(`Part type=${part.type}, hasPrompt=${!!part.prompt}, hasText=${!!part.text}`);
+        if (part.type === "subtask" && part.prompt) {
+          log(`Subtask prompt (first 200): ${part.prompt.substring(0, 200)}`);
+          if (hasSessionReferences(part.prompt)) {
+            log(`Found $SESSION in subtask prompt, resolving...`);
+            part.prompt = await resolveSessionReferences(part.prompt, input.sessionID);
+            log(`Resolved subtask prompt (first 200): ${part.prompt.substring(0, 200)}`);
+          }
+        }
+        if (part.type === "text" && part.text) {
+          log(`Text part (first 200): ${part.text.substring(0, 200)}`);
+          if (hasSessionReferences(part.text)) {
+            log(`Found $SESSION in text part, resolving...`);
+            part.text = await resolveSessionReferences(part.text, input.sessionID);
+            log(`Resolved text part (first 200): ${part.text.substring(0, 200)}`);
+          }
+        }
       }
 
       // Fix main command's parts to use only mainArgs (not the full pipe string)
@@ -228,7 +377,10 @@ const plugin: Plugin = async (ctx) => {
       hasActiveSubtask = true;
       const cmd = output.args?.command;
       const prompt = output.args?.prompt;
+      const description = output.args?.description;
       let mainCmd = sessionMainCommand.get(input.sessionID);
+      
+      log(`tool.before: callID=${input.callID}, cmd=${cmd}, desc="${description?.substring(0,30)}", mainCmd=${mainCmd}`);
       
       // If mainCmd is not set (command.execute.before didn't fire - no PR), 
       // set the first subtask command as the main command
@@ -251,9 +403,22 @@ const plugin: Plugin = async (ctx) => {
         }
         
         // Also set up return state since command.execute.before didn't run
-        if (cmdConfig.return.length > 1) {
+        // Only do this once per session
+        if (cmdConfig.return.length > 1 && !returnState.has(input.sessionID)) {
           returnState.set(input.sessionID, [...cmdConfig.return.slice(1)]);
+          log(`Set returnState: ${cmdConfig.return.slice(1).length} items`);
         }
+      }
+      
+      // Resolve $SESSION[n] in the prompt for ANY subtask
+      // Use parent session if this command was triggered via executeReturn
+      if (prompt && hasSessionReferences(prompt)) {
+        const resolveFromSession = pendingParentSession || input.sessionID;
+        log(`tool.execute.before: resolving $SESSION in prompt (from ${pendingParentSession ? 'parent' : 'current'} session ${resolveFromSession})`);
+        output.args.prompt = await resolveSessionReferences(prompt, resolveFromSession);
+        log(`tool.execute.before: resolved prompt (${output.args.prompt.length} chars)`);
+        // Clear after use
+        pendingParentSession = null;
       }
       
       if (cmd && getConfig(configs, cmd)) {
@@ -273,14 +438,28 @@ const plugin: Plugin = async (ctx) => {
     "tool.execute.after": async (input, output) => {
       if (input.tool !== "task") return;
       const cmd = callState.get(input.callID);
+      
+      log(`tool.after: callID=${input.callID}, cmd=${cmd}, wasTracked=${!!cmd}`);
+      
+      if (!cmd) {
+        // Already processed or not our command
+        return;
+      }
       callState.delete(input.callID);
 
       const mainCmd = sessionMainCommand.get(input.sessionID);
       const cmdConfig = cmd ? getConfig(configs, cmd) : undefined;
 
+      log(`tool.after: cmd=${cmd}, mainCmd=${mainCmd}, isMain=${cmd === mainCmd}, hasReturn=${!!cmdConfig?.return?.length}`);
+
       if (cmd && cmd === mainCmd && cmdConfig?.return?.length) {
-        log(`Setting pendingReturn: ${cmdConfig.return[0].substring(0, 50)}...`);
-        pendingReturns.set(input.sessionID, cmdConfig.return[0]);
+        // Only set pendingReturn if we haven't already
+        if (!pendingReturns.has(input.sessionID)) {
+          log(`Setting pendingReturn: ${cmdConfig.return[0].substring(0, 50)}...`);
+          pendingReturns.set(input.sessionID, cmdConfig.return[0]);
+        } else {
+          log(`Skipping pendingReturn - already set`);
+        }
       } else if (cmd && cmd !== mainCmd) {
         log(`task.after: ${cmd} (parallel of ${mainCmd})`);
       }

@@ -49,3 +49,53 @@ export function parseParallelConfig(parallel: unknown): ParallelCommand[] {
   }
   return [];
 }
+
+// Regex to match $SESSION[n] patterns where n is a number
+const SESSION_PATTERN_SOURCE = "\\$SESSION\\[(\\d+)\\]";
+
+export interface SessionReference {
+  match: string;
+  count: number;
+}
+
+/**
+ * Extract all $SESSION[n] references from a string
+ * Returns array of matches with their count values
+ */
+export function extractSessionReferences(text: string): SessionReference[] {
+  const refs: SessionReference[] = [];
+  const regex = new RegExp(SESSION_PATTERN_SOURCE, "g");
+  let match: RegExpExecArray | null;
+  
+  while ((match = regex.exec(text)) !== null) {
+    refs.push({
+      match: match[0],
+      count: parseInt(match[1], 10),
+    });
+  }
+  return refs;
+}
+
+/**
+ * Check if text contains any $SESSION[n] references
+ */
+export function hasSessionReferences(text: string): boolean {
+  // Create a new regex each time to avoid global state issues
+  return new RegExp(SESSION_PATTERN_SOURCE).test(text);
+}
+
+/**
+ * Replace all $SESSION[n] references in text with the provided content map
+ * @param text - Text containing $SESSION[n] patterns
+ * @param replacements - Map of "$SESSION[n]" -> replacement text
+ */
+export function replaceSessionReferences(
+  text: string,
+  replacements: Map<string, string>
+): string {
+  let result = text;
+  for (const [pattern, replacement] of replacements) {
+    result = result.replaceAll(pattern, replacement);
+  }
+  return result;
+}
