@@ -9,7 +9,7 @@ Subtask2 extends opencode commands into a powerful orchestration system. Instead
 This plugin allows your `/commands` to:
 
 - Queue-up `prompts` or other `/commands` and `subagents` with arguments
-- Parallelize the parts you want,
+- Parallelize the parts you want
 - Pass session context to subagents
 - Steer the agentic flow from start to finish
 
