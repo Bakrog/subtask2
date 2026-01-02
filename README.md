@@ -175,6 +175,13 @@ Review the following conversation and provide a concise summary:
 $TURN[10]
 ```
 
+**Syntax options:**
+
+- `$TURN[6]` - last 6 messages
+- `$TURN[:3]` - just the 3rd message from the end
+- `$TURN[:2:5:8]` - specific messages at indices 2, 5, and 8
+- `$TURN[*]` - all messages in the session
+
 **Usage in arguments:**
 
 ```bash
