@@ -4,7 +4,7 @@ Subtask2 extends opencode commands into a powerful orchestration system. Instead
 
 ![citation](media/quote.webp)
 
-### TL:DR - Less entropic agentic loop
+### TL:DR - Less entropic agentic loop, more control
 
 This plugin allows your `/commands` to:
 
