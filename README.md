@@ -1,14 +1,16 @@
 ## A stronger opencode /command handler
 
-![citation](media/image.webp)
+Subtask2 extends opencode commands into a powerful orchestration system. Instead of giving you an opinionated monster like some plugins do, it lets you build your own (but simple is fine too)
 
-Subtask2 upgrades opencode commands to a powerful orchestration system. Instead of giving you an opiniated monster, it let's you build your own (but simple is fine too)
+![citation](media/quote.webp)
+
+### TL:DR
 
 This plugin allows your `/commands` to:
 
 - Queue-up `prompts` or other `/commands` and `subagents` with arguments
 - Parallelize the parts you want,
-- Pass session content to subagents
+- Pass session context to subagents
 - Steer the agentic flow from start to finish
 
 If you already know opencode commands, you'll be right at home.
@@ -21,7 +23,7 @@ If you already know opencode commands, you'll be right at home.
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
 - `parallel` run subtasks concurrently - _pending PR merge ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe
-- `$SESSION[n]` pipe the last N conversation turns into your command
+- `$TURN[n]` pipe the last N conversation turns into your command
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
@@ -159,9 +161,9 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 
 #### Priority: `return` param > config `generic_return` > built-in default > opencode original
 
-### 4. `$SESSION[n]` - Reference previous conversation turns
+### 4. `$TURN[n]` - Reference previous conversation turns
 
-Use `$SESSION[n]` to inject the last N conversation turns (user + assistant messages) into your command. This is powerful for commands that need context from the ongoing conversation.
+Use `$TURN[n]` to inject the last N conversation turns (user + assistant messages) into your command. This is powerful for commands that need context from the ongoing conversation.
 
 ```yaml
 ---
@@ -170,30 +172,31 @@ subtask: true
 ---
 Review the following conversation and provide a concise summary:
 
-$SESSION[10]
+$TURN[10]
 ```
 
 **Usage in arguments:**
 
 ```bash
-/my-command analyze this $SESSION[5]
+/my-command analyze this $TURN[5]
 ```
 
-The syntax:
+**Syntax:**
 
-- `$SESSION[12]` - last 12 messages (turns, not parts)
-- Each turn includes both user input and assistant response with all text parts
+- `$TURN[12]` - last 12 messages (turns, not parts)
+- `$TURN[:3]` - just the 3rd message from the end
+- `$TURN[:2:5:8]` - specific messages at indices 2, 5, and 8 from the end
 
 **Format output:**
 
 ```
-=== USER ===
+--- USER ---
 What's the best way to implement auth?
 
-=== ASSISTANT ===
+--- ASSISTANT ---
 I'd recommend using JWT tokens with...
 
-=== USER ===
+--- USER ---
 Can you show me an example?
 ...
 ```
