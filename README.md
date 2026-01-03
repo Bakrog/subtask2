@@ -1,6 +1,4 @@
-## A stronger opencode /command handler
-
-Subtask2 extends opencode commands into a powerful orchestration system. Instead of giving you an opinionated monster like some plugins do, it lets you easily build your own (but simple is fine too).
+## Extend opencode `/commands` into a powerful orchestration system
 
 ![citation](media/quote.webp)
 
@@ -23,7 +21,7 @@ If you already know opencode commands, you'll be right at home.
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
 - `parallel` run subtasks concurrently - _pending PR merge ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe
-- `$TURN[n]` (or `[:n]`) pipe the last (or specific) N conversation turns into your command
+- `$TURN[n]` syntax allows to pipe session context into your command
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
