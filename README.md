@@ -95,7 +95,7 @@ This lets you reuse a single command template with different models - no need to
 
 **Priority:** inline `{model:...}` > frontmatter `model:` field
 
-### 3. `{loop:N,until:X}` - The automated 'look again' trick
+### 3. `{loop:N,until:X}` - Or the new 'look again' trick
 
 Run a command repeatedly until a condition is satisfied.
 
