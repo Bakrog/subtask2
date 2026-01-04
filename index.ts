@@ -10,6 +10,7 @@ import {
   parseFrontmatter,
   getTemplateBody,
   parseParallelConfig,
+  parseCommandWithOverrides,
   extractTurnReferences,
   hasTurnReferences,
   replaceTurnReferences,
@@ -35,6 +36,8 @@ const firstReturnPrompt = new Map<string, string>();
 // Simple variable: set before command call, used by tool.execute.before
 let pendingParentSession: string | null = null;
 let hasActiveSubtask = false;
+// Track model override for next command execution (set by executeReturn, consumed by command.execute.before)
+const pendingModelOverride = new Map<string, string>();
 
 const OPENCODE_GENERIC =
   "Summarize the task tool output above and continue with your task.";
@@ -240,9 +243,11 @@ async function flattenParallels(
     }
 
     // Parse model string "provider/model" into {providerID, modelID}
+    // Priority: inline override (parallelCmd.model) > frontmatter (fm.model)
     let model: {providerID: string; modelID: string} | undefined;
-    if (typeof fm.model === "string" && fm.model.includes("/")) {
-      const [providerID, ...rest] = fm.model.split("/");
+    const modelStr = parallelCmd.model || (typeof fm.model === "string" ? fm.model : undefined);
+    if (modelStr && modelStr.includes("/")) {
+      const [providerID, ...rest] = modelStr.split("/");
       model = {providerID, modelID: rest.join("/")};
     }
 
@@ -296,12 +301,19 @@ const plugin: Plugin = async (ctx) => {
     executedReturns.add(key);
 
     if (item.startsWith("/")) {
-      const [cmdName, ...argParts] = item.slice(1).split(/\s+/);
-      let args = argParts.join(" ");
+      // Parse command with potential overrides: /cmd{model:provider/id} args
+      const parsed = parseCommandWithOverrides(item);
+      let args = parsed.arguments || "";
 
       // Find the path key for this command (OpenCode needs full path for subfolder commands)
       const allKeys = Object.keys(configs);
-      const pathKey = allKeys.find(k => k.includes('/') && k.endsWith('/' + cmdName)) || cmdName;
+      const pathKey = allKeys.find(k => k.includes('/') && k.endsWith('/' + parsed.command)) || parsed.command;
+
+      // Store model override if present (will be consumed by command.execute.before)
+      if (parsed.overrides.model) {
+        pendingModelOverride.set(sessionID, parsed.overrides.model);
+        log(`executeReturn: stored model override for ${sessionID}: ${parsed.overrides.model}`);
+      }
 
       // Check if we have piped args for this return command
       const returnArgs = returnArgsState.get(sessionID);
@@ -311,7 +323,7 @@ const plugin: Plugin = async (ctx) => {
         if (pipeArg) args = pipeArg;
       }
 
-      log(`executeReturn: /${cmdName} -> ${pathKey} args="${args}" (parent=${sessionID})`);
+      log(`executeReturn: /${parsed.command} -> ${pathKey} args="${args}" (parent=${sessionID})`);
       sessionMainCommand.set(sessionID, pathKey);
       // Set parent session for $SESSION resolution - will be consumed by tool.execute.before
       pendingParentSession = sessionID;
@@ -347,8 +359,35 @@ const plugin: Plugin = async (ctx) => {
         agent: config.agent
       } : "no config");
 
+      // Check for model override: from pendingModelOverride (set by executeReturn) 
+      // or from inline syntax in arguments: {model:provider/id} at start
+      let effectiveArgs = input.arguments;
+      let modelOverride = pendingModelOverride.get(input.sessionID);
+      
+      // Parse inline override from arguments if present (for direct /cmd{model:...} invocation)
+      const inlineMatch = effectiveArgs.match(/^\{([^}]+)\}\s*/);
+      if (inlineMatch) {
+        effectiveArgs = effectiveArgs.slice(inlineMatch[0].length);
+        const modelMatch = inlineMatch[1].match(/model:([^,}]+)/);
+        if (modelMatch) modelOverride = modelMatch[1].trim();
+      }
+      
+      // Apply model override to subtask parts
+      if (modelOverride) {
+        pendingModelOverride.delete(input.sessionID);
+        if (modelOverride.includes("/")) {
+          const [providerID, ...rest] = modelOverride.split("/");
+          for (const part of output.parts) {
+            if (part.type === "subtask") {
+              part.model = {providerID, modelID: rest.join("/")};
+            }
+          }
+          log(`cmd.before: applied model override: ${modelOverride}`);
+        }
+      }
+
       // Parse pipe-separated arguments: main || arg1 || arg2 || arg3 ...
-      const argSegments = input.arguments.split("||").map((s) => s.trim());
+      const argSegments = effectiveArgs.split("||").map((s) => s.trim());
       let mainArgs = argSegments[0] || "";
       const allPipedArgs = argSegments.slice(1);
 

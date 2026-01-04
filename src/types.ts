@@ -1,6 +1,7 @@
 export interface ParallelCommand {
   command: string;
   arguments?: string;
+  model?: string; // Override model: "provider/model-id"
 }
 
 export interface CommandConfig {

@@ -72,7 +72,28 @@ By default, opencode injects a user message after a `subtask: true` completes, a
 
 **Note:** The first `return` of a `subtask: true` command cannot be a slash command as it subsitutes the opencode injected message (as a string)
 
-### 2. `parallel` - Run multiple subtasks concurrently ⚠️ **PENDING PR**
+### 2. `{model:...}` - Inline model override ⚠️ **PENDING PR**
+
+Override the model for any command invocation without modifying the command file. Attach the override directly to the command name with no space:
+
+```bash
+/plan{model:anthropic/claude-sonnet-4} design auth system
+```
+
+```yaml
+return:
+  - /plan{model:github-copilot/claude-sonnet-4.5}
+  - /plan{model:openai/gpt-5.2}
+  - Compare both plans and pick the best approach
+```
+
+This lets you reuse a single command template with different models - no need to duplicate commands just to change the model.
+
+**Syntax:** `{model:provider/model-id}` - must be attached directly to the command (no space).
+
+**Priority:** inline `{model:...}` > frontmatter `model:` field
+
+### 3. `parallel` - Run multiple subtasks concurrently ⚠️ **PENDING PR**
 
 Spawn additional command subtasks alongside the main one:
 
@@ -139,7 +160,7 @@ parallel: /research-docs, /research-codebase, /security-audit
 
 #### Priority: pipe args > frontmatter args > inherit main args
 
-### 3. Subtask `return` fallback and custom defaults
+### 4. Subtask `return` fallback and custom defaults
 
 For `subtask: true` commands, this plugin replaces the opencode generic "summarize" message with the `return` prompt. If undefined and `"replace_generic": true`, subtask2 uses:
 
@@ -159,7 +180,7 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 
 #### Priority: `return` param > config `generic_return` > built-in default > opencode original
 
-### 4. `$TURN[n]` - Reference previous conversation turns
+### 5. `$TURN[n]` - Reference previous conversation turns
 
 Use `$TURN[n]` to inject the last N conversation turns (user + assistant messages) into your command. This is powerful for commands that need context from the ongoing conversation.
 

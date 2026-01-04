@@ -16,19 +16,27 @@ export function getTemplateBody(content: string): string {
   return match ? match[1].trim() : content.trim();
 }
 
-// Parse a parallel item - handles "/cmd args" syntax, plain "cmd", or {command, arguments} object
+// Parse a parallel item - handles "/cmd{model:...} args" syntax, plain "cmd", or {command, arguments} object
 export function parseParallelItem(p: unknown): ParallelCommand | null {
   if (typeof p === "string") {
     const trimmed = p.trim();
     if (trimmed.startsWith("/")) {
-      // Parse /command args syntax
-      const [cmdName, ...argParts] = trimmed.slice(1).split(/\s+/);
-      return {command: cmdName, arguments: argParts.join(" ") || undefined};
+      // Parse /command{overrides} args syntax
+      const parsed = parseCommandWithOverrides(trimmed);
+      return {
+        command: parsed.command,
+        arguments: parsed.arguments,
+        model: parsed.overrides.model,
+      };
     }
     return {command: trimmed};
   }
   if (typeof p === "object" && p !== null && (p as any).command) {
-    return {command: (p as any).command, arguments: (p as any).arguments};
+    return {
+      command: (p as any).command,
+      arguments: (p as any).arguments,
+      model: (p as any).model,
+    };
   }
   return null;
 }
@@ -121,3 +129,61 @@ export const extractSessionReferences = extractTurnReferences;
 export const hasSessionReferences = hasTurnReferences;
 export const replaceSessionReferences = replaceTurnReferences;
 export type SessionReference = TurnReference;
+
+export interface CommandOverrides {
+  model?: string;
+}
+
+export interface ParsedCommand {
+  command: string;
+  arguments?: string;
+  overrides: CommandOverrides;
+}
+
+/**
+ * Parse a command string with optional overrides: /cmd{model:provider/model-id} args
+ * Syntax: /command{key:value,key2:value2} arguments
+ * No space between command and {overrides}
+ */
+export function parseCommandWithOverrides(input: string): ParsedCommand {
+  const trimmed = input.trim();
+  
+  if (!trimmed.startsWith("/")) {
+    return {command: trimmed, overrides: {}};
+  }
+  
+  // Match: /command{...} or /command
+  // Pattern: /commandName{overrides} rest
+  const match = trimmed.match(/^\/([a-zA-Z0-9_\-\/]+)(\{([^}]+)\})?\s*(.*)$/);
+  
+  if (!match) {
+    // Fallback: just split on first space
+    const [cmd, ...rest] = trimmed.slice(1).split(/\s+/);
+    return {command: cmd, arguments: rest.join(" ") || undefined, overrides: {}};
+  }
+  
+  const [, commandName, , overridesStr, args] = match;
+  const overrides: CommandOverrides = {};
+  
+  if (overridesStr) {
+    // Parse key:value pairs separated by commas
+    const pairs = overridesStr.split(",");
+    for (const pair of pairs) {
+      const colonIdx = pair.indexOf(":");
+      if (colonIdx > 0) {
+        const key = pair.slice(0, colonIdx).trim();
+        const value = pair.slice(colonIdx + 1).trim();
+        if (key === "model") {
+          overrides.model = value;
+        }
+        // Can add more override keys here in the future
+      }
+    }
+  }
+  
+  return {
+    command: commandName,
+    arguments: args || undefined,
+    overrides,
+  };
+}
