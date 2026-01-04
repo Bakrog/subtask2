@@ -1,7 +1,13 @@
+export interface LoopConfig {
+  max: number;       // Max iterations
+  until: string;     // Completion condition
+}
+
 export interface ParallelCommand {
   command: string;
   arguments?: string;
-  model?: string; // Override model: "provider/model-id"
+  model?: string;    // Override model: "provider/model-id"
+  loop?: LoopConfig; // Retry until completion
 }
 
 export interface CommandConfig {
@@ -10,6 +16,7 @@ export interface CommandConfig {
   agent?: string;
   description?: string;
   template?: string;
+  loop?: LoopConfig; // Retry this command until completion
 }
 
 export interface Subtask2Config {

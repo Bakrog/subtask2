@@ -19,9 +19,11 @@ If you already know opencode commands, you'll be right at home.
 ### Key features
 
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
-- `parallel` run subtasks concurrently - _pending PR merge ⚠️_
-- `arguments` pass arguments with command frontmatter or `||` message pipe
-- `$TURN[n]` syntax allows to pipe session context into your command
+- `{model:...}` override model inline - _pending PR ⚠️_
+- `{loop:N,until:X}` loop until condition (orchestrator-decides)
+- `parallel` run subtasks concurrently - _pending PR ⚠️_
+- `arguments` pass arguments with command frontmatter or `||` message pipe - _for any command_
+- `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
@@ -93,7 +95,61 @@ This lets you reuse a single command template with different models - no need to
 
 **Priority:** inline `{model:...}` > frontmatter `model:` field
 
-### 3. `parallel` - Run multiple subtasks concurrently ⚠️ **PENDING PR**
+### 3. `{loop:N,until:X}` - The automated 'look again' trick
+
+Run a command repeatedly until a condition is satisfied.
+
+**Inline syntax:**
+
+```bash
+/fix-tests{loop:10,until:all tests pass with good coverage}
+```
+
+**Frontmatter:**
+
+```yaml
+---
+loop:
+  max: 10
+  until: "all features implemented correctly"
+---
+Implement the auth system.
+```
+
+**In return chains:**
+
+```yaml
+return:
+  - /implement-feature
+  - /fix-tests{loop:5,until:tests are green}
+  - /commit
+```
+
+**How it works (orchestrator-decides pattern):**
+
+1. Subtask runs and completes
+2. Main session receives evaluation prompt with the condition
+3. Main LLM evaluates: reads files, checks git, runs tests if needed
+4. Responds with `<subtask2 loop="break"/>` (satisfied) or `<subtask2 loop="continue"/>` (more work needed)
+5. If continue → loop again. If break → proceed to next step
+6. Max iterations is a safety net
+
+**Why this works:**
+
+- The main session (orchestrator) has full context of what was done
+- It can verify by reading actual files, git diff, test output
+- No fake "DONE" markers - real evaluation of real conditions
+- The `until:` is a human-readable condition, not a magic keyword
+
+**Best practices:**
+
+- Write clear conditions: `until: "tests pass"` not `until: "DONE"`
+- Always set a reasonable `max` as a safety net
+- The condition is shown to the evaluating LLM verbatim
+
+**Priority:** inline `{loop:...}` > frontmatter `loop:`
+
+### 4. `parallel` - Run multiple subtasks concurrently ⚠️ **PENDING PR**
 
 Spawn additional command subtasks alongside the main one:
 
@@ -160,7 +216,7 @@ parallel: /research-docs, /research-codebase, /security-audit
 
 #### Priority: pipe args > frontmatter args > inherit main args
 
-### 4. Subtask `return` fallback and custom defaults
+### 5. Subtask `return` fallback and custom defaults
 
 For `subtask: true` commands, this plugin replaces the opencode generic "summarize" message with the `return` prompt. If undefined and `"replace_generic": true`, subtask2 uses:
 
@@ -180,7 +236,7 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
 
 #### Priority: `return` param > config `generic_return` > built-in default > opencode original
 
-### 5. `$TURN[n]` - Reference previous conversation turns
+### 6. `$TURN[n]` - Reference previous conversation turns
 
 Use `$TURN[n]` to inject the last N conversation turns (user + assistant messages) into your command. This is powerful for commands that need context from the ongoing conversation.
 

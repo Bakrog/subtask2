@@ -2,8 +2,8 @@
 
 import type {Subtask2Config} from "./types";
 
-export const DEFAULT_PROMPT =
-  "Review, challenge and validate the task output against the codebase then continue with the next logical step.";
+// Re-export from prompts.ts for backwards compatibility
+export { DEFAULT_RETURN_PROMPT as DEFAULT_PROMPT } from "./prompts";
 
 const CONFIG_PATH = `${Bun.env.HOME ?? ""}/.config/opencode/subtask2.jsonc`;
 

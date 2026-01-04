@@ -1,5 +1,5 @@
 import YAML from "yaml";
-import type {ParallelCommand} from "./types";
+import type {ParallelCommand, LoopConfig} from "./types";
 
 export function parseFrontmatter(content: string): Record<string, unknown> {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
@@ -16,6 +16,31 @@ export function getTemplateBody(content: string): string {
   return match ? match[1].trim() : content.trim();
 }
 
+/**
+ * Parse loop config from frontmatter
+ * Supports:
+ *   loop: 10  (just max)
+ *   loop: { max: 10, until: "condition" }
+ */
+export function parseLoopConfig(loop: unknown): LoopConfig | undefined {
+  if (loop === undefined || loop === null) return undefined;
+  
+  if (typeof loop === "number" && loop > 0) {
+    return {max: loop, until: ""};
+  }
+  
+  if (typeof loop === "object") {
+    const obj = loop as Record<string, unknown>;
+    const max = typeof obj.max === "number" ? obj.max : 10;
+    const until = typeof obj.until === "string" ? obj.until : "";
+    if (max > 0) {
+      return {max, until};
+    }
+  }
+  
+  return undefined;
+}
+
 // Parse a parallel item - handles "/cmd{model:...} args" syntax, plain "cmd", or {command, arguments} object
 export function parseParallelItem(p: unknown): ParallelCommand | null {
   if (typeof p === "string") {
@@ -27,6 +52,7 @@ export function parseParallelItem(p: unknown): ParallelCommand | null {
         command: parsed.command,
         arguments: parsed.arguments,
         model: parsed.overrides.model,
+        loop: parsed.overrides.loop,
       };
     }
     return {command: trimmed};
@@ -36,6 +62,7 @@ export function parseParallelItem(p: unknown): ParallelCommand | null {
       command: (p as any).command,
       arguments: (p as any).arguments,
       model: (p as any).model,
+      loop: (p as any).loop,
     };
   }
   return null;
@@ -132,6 +159,7 @@ export type SessionReference = TurnReference;
 
 export interface CommandOverrides {
   model?: string;
+  loop?: LoopConfig;
 }
 
 export interface ParsedCommand {
@@ -175,6 +203,19 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
         const value = pair.slice(colonIdx + 1).trim();
         if (key === "model") {
           overrides.model = value;
+        } else if (key === "loop") {
+          // loop:10 - just max iterations, no until marker
+          const max = parseInt(value, 10);
+          if (!isNaN(max) && max > 0) {
+            overrides.loop = {max, until: ""};
+          }
+        } else if (key === "until") {
+          // until:condition - set/update until marker
+          if (!overrides.loop) {
+            overrides.loop = {max: 10, until: value}; // default max=10
+          } else {
+            overrides.loop.until = value;
+          }
         }
         // Can add more override keys here in the future
       }

@@ -4,6 +4,7 @@ import type {
   Subtask2Config,
   ParallelCommand,
   SubtaskPart,
+  LoopConfig,
 } from "./src/types";
 import {loadConfig, DEFAULT_PROMPT} from "./src/config";
 import {
@@ -14,9 +15,24 @@ import {
   extractTurnReferences,
   hasTurnReferences,
   replaceTurnReferences,
+  parseLoopConfig,
 } from "./src/parser";
 import {loadCommandFile, buildManifest, getConfig} from "./src/commands";
 import {log, clearLog} from "./src/logger";
+import {
+  createEvaluationPrompt,
+  parseLoopDecision,
+  startLoop,
+  getLoopState,
+  incrementLoopIteration,
+  clearLoop,
+  isMaxIterationsReached,
+  setPendingEvaluation,
+  getPendingEvaluation,
+  getAllPendingEvaluations,
+  clearPendingEvaluation,
+  type LoopState,
+} from "./src/loop";
 
 // Session state
 let configs: Record<string, CommandConfig> = {};
@@ -294,14 +310,14 @@ const plugin: Plugin = async (ctx) => {
   log(`Plugin initialized: ${uniqueCmds.length} commands`, uniqueCmds);
 
   // Helper to execute a return item (command or prompt)
-  async function executeReturn(item: string, sessionID: string) {
+  async function executeReturn(item: string, sessionID: string, retryOverride?: LoopConfig) {
     // Dedup check to prevent double execution
     const key = `${sessionID}:${item}`;
     if (executedReturns.has(key)) return;
     executedReturns.add(key);
 
     if (item.startsWith("/")) {
-      // Parse command with potential overrides: /cmd{model:provider/id} args
+      // Parse command with potential overrides: /cmd{model:provider/id,retry:5,until:DONE} args
       const parsed = parseCommandWithOverrides(item);
       let args = parsed.arguments || "";
 
@@ -313,6 +329,13 @@ const plugin: Plugin = async (ctx) => {
       if (parsed.overrides.model) {
         pendingModelOverride.set(sessionID, parsed.overrides.model);
         log(`executeReturn: stored model override for ${sessionID}: ${parsed.overrides.model}`);
+      }
+
+      // Store retry config if present (inline takes precedence over passed-in)
+      const retryConfig = parsed.overrides.loop || retryOverride;
+      if (retryConfig) {
+        startLoop(sessionID, retryConfig, pathKey, args);
+        log(`executeReturn: started retry loop for ${sessionID}: max=${retryConfig.max}, until="${retryConfig.until}"`);
       }
 
       // Check if we have piped args for this return command
@@ -363,13 +386,29 @@ const plugin: Plugin = async (ctx) => {
       // or from inline syntax in arguments: {model:provider/id} at start
       let effectiveArgs = input.arguments;
       let modelOverride = pendingModelOverride.get(input.sessionID);
+      let retryOverride: LoopConfig | undefined;
       
-      // Parse inline override from arguments if present (for direct /cmd{model:...} invocation)
+      // Parse inline override from arguments if present (for direct /cmd{model:...,retry:...} invocation)
       const inlineMatch = effectiveArgs.match(/^\{([^}]+)\}\s*/);
       if (inlineMatch) {
         effectiveArgs = effectiveArgs.slice(inlineMatch[0].length);
         const modelMatch = inlineMatch[1].match(/model:([^,}]+)/);
         if (modelMatch) modelOverride = modelMatch[1].trim();
+        
+        // Parse retry inline
+        const retryMatch = inlineMatch[1].match(/retry:(\d+)/);
+        const untilMatch = inlineMatch[1].match(/until:([^,}]+)/);
+        if (retryMatch && untilMatch) {
+          retryOverride = { max: parseInt(retryMatch[1], 10), until: untilMatch[1].trim() };
+        }
+      }
+      
+      // Check for retry config: inline > frontmatter
+      const fmRetry = config?.loop;
+      const activeRetry = retryOverride || fmRetry;
+      if (activeRetry && !getLoopState(input.sessionID)) {
+        startLoop(input.sessionID, activeRetry, cmd, effectiveArgs);
+        log(`cmd.before: started retry loop: max=${activeRetry.max}, until="${activeRetry.until}"`);
       }
       
       // Apply model override to subtask parts
@@ -539,6 +578,25 @@ const plugin: Plugin = async (ctx) => {
 
       log(`tool.after: cmd=${cmd}, mainCmd=${mainCmd}, isMain=${cmd === mainCmd}, hasReturn=${!!cmdConfig?.return?.length}`);
 
+      // Check for active retry loop - if this is a retry command, set up evaluation
+      const retryLoop = getLoopState(input.sessionID);
+      if (retryLoop && cmd === retryLoop.commandName) {
+        log(`retry: completed iteration ${retryLoop.iteration}/${retryLoop.config.max}`);
+        
+        // Check if max iterations reached
+        if (isMaxIterationsReached(input.sessionID)) {
+          log(`retry: MAX ITERATIONS reached (${retryLoop.config.max}), stopping`);
+          clearLoop(input.sessionID);
+          clearPendingEvaluation(input.sessionID);
+          // Continue with normal return flow
+        } else {
+          // Store state for evaluation - main LLM will decide if we continue
+          setPendingEvaluation(input.sessionID, {...retryLoop});
+          log(`retry: pending evaluation for condition "${retryLoop.config.until}"`);
+          // The evaluation prompt will be injected via pendingReturns
+        }
+      }
+
       if (cmd && cmd === mainCmd && cmdConfig?.return?.length) {
         // Only set pendingReturn if we haven't already
         if (!pendingReturns.has(input.sessionID)) {
@@ -565,6 +623,19 @@ const plugin: Plugin = async (ctx) => {
       }
 
       if (lastGenericPart) {
+        // Check for pending loop evaluation first (orchestrator-decides pattern)
+        for (const [sessionID, retryState] of getAllPendingEvaluations()) {
+          const evalPrompt = createEvaluationPrompt(
+            retryState.config.until,
+            retryState.iteration,
+            retryState.config.max
+          );
+          lastGenericPart.text = evalPrompt;
+          log(`retry: injected evaluation prompt for "${retryState.config.until}"`);
+          // Don't delete yet - we need it when parsing the response
+          return;
+        }
+
         // Check for pending return
         for (const [sessionID, returnPrompt] of pendingReturns) {
           if (returnPrompt.startsWith("/")) {
@@ -589,6 +660,40 @@ const plugin: Plugin = async (ctx) => {
     },
 
     "experimental.text.complete": async (input) => {
+      // Check for loop evaluation response (orchestrator-decides pattern)
+      const evalState = getPendingEvaluation(input.sessionID);
+      if (evalState) {
+        // Get the last assistant message to check for loop decision
+        const messages = await client.session.messages({
+          path: {id: input.sessionID},
+        });
+        const lastMsg = messages.data?.[messages.data.length - 1];
+        const lastText = lastMsg?.parts?.find((p: any) => p.type === "text")?.text || "";
+        
+        const decision = parseLoopDecision(lastText);
+        log(`retry: evaluation response decision=${decision}`);
+        
+        clearPendingEvaluation(input.sessionID);
+        
+        if (decision === "continue") {
+          // Increment and re-run
+          incrementLoopIteration(input.sessionID);
+          const state = getLoopState(input.sessionID);
+          if (state) {
+            log(`retry: continuing iteration ${state.iteration}/${state.config.max}`);
+            // Re-execute the command
+            const cmdWithArgs = `/${state.commandName}${state.arguments ? ' ' + state.arguments : ''}`;
+            executedReturns.delete(`${input.sessionID}:${cmdWithArgs}`);
+            executeReturn(cmdWithArgs, input.sessionID).catch(console.error);
+            return;
+          }
+        } else {
+          // Break - clear the loop and continue with normal flow
+          log(`retry: breaking loop, condition satisfied`);
+          clearLoop(input.sessionID);
+        }
+      }
+
       // Handle non-subtask command returns
       const pendingReturn = pendingNonSubtaskReturns.get(input.sessionID);
       if (pendingReturn?.length && client) {
