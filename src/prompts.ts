@@ -9,6 +9,11 @@ export const DEFAULT_RETURN_PROMPT =
   "Review, challenge and validate the task output against the codebase then continue with the next logical step.";
 
 /**
+ * Instruction for /s2 inline subtask - makes LLM say minimal response while subtask runs
+ */
+export const S2_INLINE_INSTRUCTION = `<system>Say this phrase EXACTLY and nothing else: "Running subagent..."</system>`;
+
+/**
  * Loop evaluation prompt - injected after subtask completes for orchestrator to decide
  */
 export function loopEvaluationPrompt(

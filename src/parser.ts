@@ -157,6 +157,62 @@ export const hasSessionReferences = hasTurnReferences;
 export const replaceSessionReferences = replaceTurnReferences;
 export type SessionReference = TurnReference;
 
+export interface ParsedInlineSubtask {
+  prompt: string;
+  overrides: CommandOverrides;
+}
+
+/**
+ * Parse /s2{...} prompt or /{...} prompt inline subtask syntax
+ * Input should NOT include the /s2 or / prefix
+ * Returns null if not valid inline subtask syntax
+ */
+export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
+  const trimmed = input.trim();
+  
+  // Must start with {
+  if (!trimmed.startsWith("{")) return null;
+  
+  const braceEnd = trimmed.indexOf("}");
+  if (braceEnd === -1) return null;
+  
+  const overrideStr = trimmed.substring(1, braceEnd);
+  const prompt = trimmed.substring(braceEnd + 1).trim();
+  
+  if (!prompt) return null;
+  
+  // Parse overrides
+  const overrides: CommandOverrides = {};
+  const pairs = overrideStr.split(",");
+  
+  for (const pair of pairs) {
+    const colonIdx = pair.indexOf(":");
+    if (colonIdx === -1) continue;
+    
+    const key = pair.substring(0, colonIdx).trim().toLowerCase();
+    const value = pair.substring(colonIdx + 1).trim();
+    
+    if (key === "model") {
+      overrides.model = value;
+    } else if (key === "agent") {
+      overrides.agent = value;
+    } else if (key === "loop") {
+      const max = parseInt(value, 10);
+      if (!isNaN(max) && max > 0) {
+        overrides.loop = { max, until: "" };
+      }
+    } else if (key === "until") {
+      if (!overrides.loop) {
+        overrides.loop = { max: 10, until: value };
+      } else {
+        overrides.loop.until = value;
+      }
+    }
+  }
+  
+  return { prompt, overrides };
+}
+
 export interface CommandOverrides {
   model?: string;
   agent?: string;

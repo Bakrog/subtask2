@@ -22,7 +22,8 @@ If you already know opencode commands, you'll be right at home.
 - `{model:...}` override model inline - _pending PR ⚠️_
 - `{agent:...}` override agent inline
 - `{loop:N,until:X}` loop until condition (orchestrator-decides)
-- `/{...} prompt` inline subtasks without command files
+- `/{...} prompt` inline subtasks without command files (in `return:`)
+- `/s2{...} prompt` inline subtasks from chat input
 - `parallel` run subtasks concurrently - _pending PR ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe - _for any command_
 - `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
@@ -138,6 +139,18 @@ return:
 - Mixing models/agents in a single workflow
 
 **Syntax:** `/{key:value,...} prompt text` - the `/` prefix with `{` indicates an inline subtask.
+
+### 2d. `/s2{...} prompt` - Inline subtasks from chat
+
+Same as `/{...}` but for direct chat input:
+
+```bash
+/s2 tell me a joke                              # simple subtask
+/s2{model:openai/gpt-4o} analyze this code      # with model override
+/s2{agent:build,loop:3,until:all tests pass} my tests are failing, please advise  # with agent + loop
+```
+
+This lets you spawn ad-hoc subtasks without creating command files or using return chains.
 
 ### 3. `{loop:N,until:X}` - Or the new 'look again' trick
 
