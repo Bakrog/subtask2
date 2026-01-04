@@ -1,8 +1,12 @@
 /// <reference types="bun-types" />
 
-import type {CommandConfig} from "./types";
-import {parseFrontmatter, getTemplateBody, parseParallelConfig} from "./parser";
-import {log} from "./logger";
+import type { CommandConfig } from "./types";
+import {
+  parseFrontmatter,
+  getTemplateBody,
+  parseParallelConfig,
+} from "./parser";
+import { log } from "./logger";
 
 // Normalize command name - try multiple variations to find a match
 export function getConfig(
@@ -11,25 +15,25 @@ export function getConfig(
 ): CommandConfig | undefined {
   // Direct match
   if (configs[cmd]) return configs[cmd];
-  
+
   // Try filename-only (last segment of path)
   const filenameOnly = cmd.split("/").pop()!;
   if (configs[filenameOnly]) return configs[filenameOnly];
-  
+
   // Try with slashes replaced by hyphens
   const hyphenated = cmd.replace(/\//g, "-");
   if (configs[hyphenated]) return configs[hyphenated];
-  
+
   // Try converting hyphens back to slashes
   const slashed = cmd.replace(/-/g, "/");
   if (configs[slashed]) return configs[slashed];
-  
+
   return undefined;
 }
 
 export async function loadCommandFile(
   name: string
-): Promise<{content: string; path: string} | null> {
+): Promise<{ content: string; path: string } | null> {
   const home = Bun.env.HOME ?? "";
   const dirs = [
     `${home}/.config/opencode/command`,
@@ -42,7 +46,7 @@ export async function loadCommandFile(
     try {
       const file = Bun.file(directPath);
       if (await file.exists()) {
-        return {content: await file.text(), path: directPath};
+        return { content: await file.text(), path: directPath };
       }
     } catch {}
 
@@ -52,7 +56,7 @@ export async function loadCommandFile(
       for await (const match of glob.scan(dir)) {
         const fullPath = `${dir}/${match}`;
         const content = await Bun.file(fullPath).text();
-        return {content, path: fullPath};
+        return { content, path: fullPath };
       }
     } catch {}
   }
@@ -73,7 +77,7 @@ export async function buildManifest(): Promise<Record<string, CommandConfig>> {
       for await (const file of glob.scan(dir)) {
         const name = file.replace(/\.md$/, "").split("/").pop()!;
         const pathKey = file.replace(/\.md$/, "");
-        
+
         const content = await Bun.file(`${dir}/${file}`).text();
         const fm = parseFrontmatter(content);
         const returnVal = fm.return;
@@ -91,10 +95,10 @@ export async function buildManifest(): Promise<Record<string, CommandConfig>> {
           description: fm.description as string | undefined,
           template: getTemplateBody(content),
         };
-        
+
         // Store with filename-only key
         manifest[name] = config;
-        
+
         // Also store with full relative path for subfolder commands
         if (pathKey !== name) {
           manifest[pathKey] = config;

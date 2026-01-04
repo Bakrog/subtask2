@@ -1,6 +1,6 @@
 /// <reference types="bun-types" />
 
-import type {Subtask2Config} from "./types";
+import type { Subtask2Config } from "./types";
 
 // Re-export from prompts.ts for backwards compatibility
 export { DEFAULT_RETURN_PROMPT as DEFAULT_PROMPT } from "./prompts";

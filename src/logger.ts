@@ -11,7 +11,7 @@ if (!existsSync(LOG_DIR)) {
 export function log(...args: unknown[]) {
   const timestamp = new Date().toISOString();
   const message = args
-    .map((a) => (typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)))
+    .map(a => (typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)))
     .join(" ");
   appendFileSync(LOG_FILE, `[${timestamp}] ${message}\n`);
 }

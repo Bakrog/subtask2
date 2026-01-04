@@ -1,5 +1,5 @@
 import YAML from "yaml";
-import type {ParallelCommand, LoopConfig} from "./types";
+import type { ParallelCommand, LoopConfig } from "./types";
 
 export function parseFrontmatter(content: string): Record<string, unknown> {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
@@ -24,20 +24,20 @@ export function getTemplateBody(content: string): string {
  */
 export function parseLoopConfig(loop: unknown): LoopConfig | undefined {
   if (loop === undefined || loop === null) return undefined;
-  
+
   if (typeof loop === "number" && loop > 0) {
-    return {max: loop, until: ""};
+    return { max: loop, until: "" };
   }
-  
+
   if (typeof loop === "object") {
     const obj = loop as Record<string, unknown>;
     const max = typeof obj.max === "number" ? obj.max : 10;
     const until = typeof obj.until === "string" ? obj.until : "";
     if (max > 0) {
-      return {max, until};
+      return { max, until };
     }
   }
-  
+
   return undefined;
 }
 
@@ -55,7 +55,7 @@ export function parseParallelItem(p: unknown): ParallelCommand | null {
         loop: parsed.overrides.loop,
       };
     }
-    return {command: trimmed};
+    return { command: trimmed };
   }
   if (typeof p === "object" && p !== null && (p as any).command) {
     return {
@@ -90,7 +90,7 @@ export function parseParallelConfig(parallel: unknown): ParallelCommand[] {
 const TURN_LAST_N_PATTERN = "\\$TURN\\[(\\d+)\\]";
 const TURN_SPECIFIC_PATTERN = "\\$TURN\\[([:\\d]+)\\]";
 
-export type TurnReference = 
+export type TurnReference =
   | { type: "lastN"; match: string; count: number }
   | { type: "specific"; match: string; indices: number[] }
   | { type: "all"; match: string };
@@ -102,20 +102,23 @@ export type TurnReference =
  */
 export function extractTurnReferences(text: string): TurnReference[] {
   const refs: TurnReference[] = [];
-  
+
   // Match $TURN[...] patterns
   const regex = /\$TURN\[([^\]]+)\]/g;
   let match: RegExpExecArray | null;
-  
+
   while ((match = regex.exec(text)) !== null) {
     const inner = match[1];
-    
+
     if (inner === "*") {
       // All messages: $TURN[*]
       refs.push({ type: "all", match: match[0] });
     } else if (inner.startsWith(":")) {
       // Specific indices: $TURN[:2] or $TURN[:2:5:8]
-      const indices = inner.split(":").filter(Boolean).map(n => parseInt(n, 10));
+      const indices = inner
+        .split(":")
+        .filter(Boolean)
+        .map(n => parseInt(n, 10));
       if (indices.length > 0 && indices.every(n => !isNaN(n))) {
         refs.push({ type: "specific", match: match[0], indices });
       }
@@ -169,29 +172,29 @@ export interface ParsedInlineSubtask {
  */
 export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
   const trimmed = input.trim();
-  
+
   // Must start with {
   if (!trimmed.startsWith("{")) return null;
-  
+
   const braceEnd = trimmed.indexOf("}");
   if (braceEnd === -1) return null;
-  
+
   const overrideStr = trimmed.substring(1, braceEnd);
   const prompt = trimmed.substring(braceEnd + 1).trim();
-  
+
   if (!prompt) return null;
-  
+
   // Parse overrides
   const overrides: CommandOverrides = {};
   const pairs = overrideStr.split(",");
-  
+
   for (const pair of pairs) {
     const colonIdx = pair.indexOf(":");
     if (colonIdx === -1) continue;
-    
+
     const key = pair.substring(0, colonIdx).trim().toLowerCase();
     const value = pair.substring(colonIdx + 1).trim();
-    
+
     if (key === "model") {
       overrides.model = value;
     } else if (key === "agent") {
@@ -209,7 +212,7 @@ export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
       }
     }
   }
-  
+
   return { prompt, overrides };
 }
 
@@ -223,7 +226,7 @@ export interface ParsedCommand {
   command: string;
   arguments?: string;
   overrides: CommandOverrides;
-  isInlineSubtask?: boolean;  // true for /{...} prompt syntax
+  isInlineSubtask?: boolean; // true for /{...} prompt syntax
 }
 
 /**
@@ -234,37 +237,41 @@ export interface ParsedCommand {
  */
 export function parseCommandWithOverrides(input: string): ParsedCommand {
   const trimmed = input.trim();
-  
+
   if (!trimmed.startsWith("/")) {
-    return {command: trimmed, overrides: {}};
+    return { command: trimmed, overrides: {} };
   }
-  
+
   // Check for inline subtask syntax: /{...} prompt
   const inlineMatch = trimmed.match(/^\/\{([^}]+)\}\s+(.+)$/s);
   if (inlineMatch) {
     const [, overridesStr, prompt] = inlineMatch;
     const overrides = parseOverridesString(overridesStr);
     return {
-      command: "",  // No command - inline prompt
+      command: "", // No command - inline prompt
       arguments: prompt,
       overrides,
       isInlineSubtask: true,
     };
   }
-  
+
   // Match: /command{...} or /command
   // Pattern: /commandName{overrides} rest
   const match = trimmed.match(/^\/([a-zA-Z0-9_\-\/]+)(\{([^}]+)\})?\s*(.*)$/s);
-  
+
   if (!match) {
     // Fallback: just split on first space
     const [cmd, ...rest] = trimmed.slice(1).split(/\s+/);
-    return {command: cmd, arguments: rest.join(" ") || undefined, overrides: {}};
+    return {
+      command: cmd,
+      arguments: rest.join(" ") || undefined,
+      overrides: {},
+    };
   }
-  
+
   const [, commandName, , overridesStr, args] = match;
   const overrides = overridesStr ? parseOverridesString(overridesStr) : {};
-  
+
   return {
     command: commandName,
     arguments: args || undefined,
@@ -277,7 +284,7 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
  */
 function parseOverridesString(overridesStr: string): CommandOverrides {
   const overrides: CommandOverrides = {};
-  
+
   // Parse key:value pairs separated by commas
   const pairs = overridesStr.split(",");
   for (const pair of pairs) {
@@ -293,18 +300,18 @@ function parseOverridesString(overridesStr: string): CommandOverrides {
         // loop:10 - just max iterations, no until marker
         const max = parseInt(value, 10);
         if (!isNaN(max) && max > 0) {
-          overrides.loop = {max, until: ""};
+          overrides.loop = { max, until: "" };
         }
       } else if (key === "until") {
         // until:condition - set/update until marker
         if (!overrides.loop) {
-          overrides.loop = {max: 10, until: value}; // default max=10
+          overrides.loop = { max: 10, until: value }; // default max=10
         } else {
           overrides.loop.until = value;
         }
       }
     }
   }
-  
+
   return overrides;
 }

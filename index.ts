@@ -1,4 +1,4 @@
-import type {Plugin} from "@opencode-ai/plugin";
+import type { Plugin } from "@opencode-ai/plugin";
 import type {
   CommandConfig,
   Subtask2Config,
@@ -6,8 +6,8 @@ import type {
   SubtaskPart,
   LoopConfig,
 } from "./src/types";
-import {loadConfig, DEFAULT_PROMPT} from "./src/config";
-import {S2_INLINE_INSTRUCTION} from "./src/prompts";
+import { loadConfig, DEFAULT_PROMPT } from "./src/config";
+import { S2_INLINE_INSTRUCTION } from "./src/prompts";
 import {
   parseFrontmatter,
   getTemplateBody,
@@ -19,8 +19,8 @@ import {
   replaceTurnReferences,
   parseLoopConfig,
 } from "./src/parser";
-import {loadCommandFile, buildManifest, getConfig} from "./src/commands";
-import {log, clearLog} from "./src/logger";
+import { loadCommandFile, buildManifest, getConfig } from "./src/commands";
+import { log, clearLog } from "./src/logger";
 import {
   createEvaluationPrompt,
   parseLoopDecision,
@@ -38,7 +38,7 @@ import {
 
 // Session state
 let configs: Record<string, CommandConfig> = {};
-let pluginConfig: Subtask2Config = {replace_generic: true};
+let pluginConfig: Subtask2Config = { replace_generic: true };
 let client: any = null;
 const callState = new Map<string, string>();
 const returnState = new Map<string, string[]>();
@@ -79,7 +79,7 @@ async function fetchSessionMessages(
 
   try {
     const result = await client.session.messages({
-      path: {id: sessionID},
+      path: { id: sessionID },
     });
 
     const messages = result.data;
@@ -132,7 +132,7 @@ async function fetchSessionMessages(
     if (specificIndices && specificIndices.length > 0) {
       // Specific indices mode: $TURN[:2:5:8] - indices are 1-based from end
       selectedMessages = specificIndices
-        .map((idx) => effectiveMessages[effectiveMessages.length - idx])
+        .map(idx => effectiveMessages[effectiveMessages.length - idx])
         .filter(Boolean);
       log(
         `Using specific indices [${specificIndices.join(",")}] -> ${
@@ -252,7 +252,7 @@ async function flattenParallels(
   log(`flattenParallels called:`, {
     depth,
     parallels: parallels.map(
-      (p) => `${p.command}${p.arguments ? ` (args: ${p.arguments})` : ""}`
+      p => `${p.command}${p.arguments ? ` (args: ${p.arguments})` : ""}`
     ),
     mainArgs,
     queueRemaining: [...queue],
@@ -287,13 +287,13 @@ async function flattenParallels(
 
     // Parse model string "provider/model" into {providerID, modelID}
     // Priority: inline override (parallelCmd.model) > frontmatter (fm.model)
-    let model: {providerID: string; modelID: string} | undefined;
+    let model: { providerID: string; modelID: string } | undefined;
     const modelStr =
       parallelCmd.model ||
       (typeof fm.model === "string" ? fm.model : undefined);
     if (modelStr && modelStr.includes("/")) {
       const [providerID, ...rest] = modelStr.split("/");
-      model = {providerID, modelID: rest.join("/")};
+      model = { providerID, modelID: rest.join("/") };
     }
 
     parts.push({
@@ -328,14 +328,14 @@ async function flattenParallels(
   return parts;
 }
 
-const plugin: Plugin = async (ctx) => {
+const plugin: Plugin = async ctx => {
   clearLog();
   configs = await buildManifest();
   pluginConfig = await loadConfig();
   client = ctx.client;
 
   const allKeys = Object.keys(configs);
-  const uniqueCmds = allKeys.filter((k) => !k.includes("/"));
+  const uniqueCmds = allKeys.filter(k => !k.includes("/"));
   log(`Plugin initialized: ${uniqueCmds.length} commands`, uniqueCmds);
 
   // Helper to execute inline subtask from /s2{...} syntax
@@ -354,10 +354,10 @@ const plugin: Plugin = async (ctx) => {
     }
 
     // Build model from override if present
-    let model: {providerID: string; modelID: string} | undefined;
+    let model: { providerID: string; modelID: string } | undefined;
     if (parsed.overrides.model?.includes("/")) {
       const [providerID, ...rest] = parsed.overrides.model.split("/");
-      model = {providerID, modelID: rest.join("/")};
+      model = { providerID, modelID: rest.join("/") };
     }
 
     log(
@@ -382,7 +382,7 @@ const plugin: Plugin = async (ctx) => {
 
     // Execute as subtask via promptAsync
     await client.session.promptAsync({
-      path: {id: sessionID},
+      path: { id: sessionID },
       body: {
         parts: [
           {
@@ -423,10 +423,10 @@ const plugin: Plugin = async (ctx) => {
         }
 
         // Build model from override if present
-        let model: {providerID: string; modelID: string} | undefined;
+        let model: { providerID: string; modelID: string } | undefined;
         if (parsed.overrides.model?.includes("/")) {
           const [providerID, ...rest] = parsed.overrides.model.split("/");
-          model = {providerID, modelID: rest.join("/")};
+          model = { providerID, modelID: rest.join("/") };
         }
 
         // Start loop if configured
@@ -449,7 +449,7 @@ const plugin: Plugin = async (ctx) => {
         try {
           // Use promptAsync with subtask part to run as subtask
           await client.session.promptAsync({
-            path: {id: sessionID},
+            path: { id: sessionID },
             body: {
               parts: [
                 {
@@ -475,7 +475,7 @@ const plugin: Plugin = async (ctx) => {
       const allKeys = Object.keys(configs);
       const pathKey =
         allKeys.find(
-          (k) => k.includes("/") && k.endsWith("/" + parsed.command)
+          k => k.includes("/") && k.endsWith("/" + parsed.command)
         ) || parsed.command;
 
       // Store model override if present (will be consumed by command.execute.before)
@@ -512,8 +512,8 @@ const plugin: Plugin = async (ctx) => {
 
       try {
         await client.session.command({
-          path: {id: sessionID},
-          body: {command: pathKey, arguments: args || ""},
+          path: { id: sessionID },
+          body: { command: pathKey, arguments: args || "" },
         });
       } catch (e) {
         log(`executeReturn FAILED: ${pathKey}`, e);
@@ -521,16 +521,16 @@ const plugin: Plugin = async (ctx) => {
     } else {
       log(`executeReturn: prompt "${item.substring(0, 40)}..."`);
       await client.session.promptAsync({
-        path: {id: sessionID},
-        body: {parts: [{type: "text", text: item}]},
+        path: { id: sessionID },
+        body: { parts: [{ type: "text", text: item }] },
       });
     }
   }
 
   return {
     "command.execute.before": async (
-      input: {command: string; sessionID: string; arguments: string},
-      output: {parts: any[]}
+      input: { command: string; sessionID: string; arguments: string },
+      output: { parts: any[] }
     ) => {
       const cmd = input.command;
       const config = getConfig(configs, cmd);
@@ -540,7 +540,7 @@ const plugin: Plugin = async (ctx) => {
         config
           ? {
               return: config.return,
-              parallel: config.parallel.map((p) => p.command),
+              parallel: config.parallel.map(p => p.command),
               agent: config.agent,
             }
           : "no config"
@@ -587,7 +587,7 @@ const plugin: Plugin = async (ctx) => {
           const [providerID, ...rest] = modelOverride.split("/");
           for (const part of output.parts) {
             if (part.type === "subtask") {
-              part.model = {providerID, modelID: rest.join("/")};
+              part.model = { providerID, modelID: rest.join("/") };
             }
           }
           log(`cmd.before: applied model override: ${modelOverride}`);
@@ -595,7 +595,7 @@ const plugin: Plugin = async (ctx) => {
       }
 
       // Parse pipe-separated arguments: main || arg1 || arg2 || arg3 ...
-      const argSegments = effectiveArgs.split("||").map((s) => s.trim());
+      const argSegments = effectiveArgs.split("||").map(s => s.trim());
       let mainArgs = argSegments[0] || "";
       const allPipedArgs = argSegments.slice(1);
 
@@ -803,7 +803,7 @@ const plugin: Plugin = async (ctx) => {
           // Continue with normal return flow
         } else {
           // Store state for evaluation - main LLM will decide if we continue
-          setPendingEvaluation(input.sessionID, {...retryLoop});
+          setPendingEvaluation(input.sessionID, { ...retryLoop });
           log(
             `retry: pending evaluation for condition "${retryLoop.config.until}"`
           );
@@ -929,13 +929,13 @@ const plugin: Plugin = async (ctx) => {
       }
     },
 
-    "experimental.text.complete": async (input) => {
+    "experimental.text.complete": async input => {
       // Check for loop evaluation response (orchestrator-decides pattern)
       const evalState = getPendingEvaluation(input.sessionID);
       if (evalState) {
         // Get the last assistant message to check for loop decision
         const messages = await client.session.messages({
-          path: {id: input.sessionID},
+          path: { id: input.sessionID },
         });
         const lastMsg = messages.data?.[messages.data.length - 1];
         const lastText =
