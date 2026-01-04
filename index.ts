@@ -310,15 +310,64 @@ const plugin: Plugin = async (ctx) => {
   log(`Plugin initialized: ${uniqueCmds.length} commands`, uniqueCmds);
 
   // Helper to execute a return item (command or prompt)
-  async function executeReturn(item: string, sessionID: string, retryOverride?: LoopConfig) {
+  async function executeReturn(item: string, sessionID: string, loopOverride?: LoopConfig) {
     // Dedup check to prevent double execution
     const key = `${sessionID}:${item}`;
     if (executedReturns.has(key)) return;
     executedReturns.add(key);
 
     if (item.startsWith("/")) {
-      // Parse command with potential overrides: /cmd{model:provider/id,retry:5,until:DONE} args
+      // Parse command with potential overrides: /cmd{model:provider/id,loop:5,until:DONE} args
+      // Also handles inline subtask syntax: /{loop:5,until:condition} prompt text
       const parsed = parseCommandWithOverrides(item);
+      
+      if (parsed.isInlineSubtask) {
+        // Inline subtask: /{overrides} prompt - execute as subtask without command file
+        let prompt = parsed.arguments || "";
+        
+        // Resolve $TURN references in the prompt
+        if (hasTurnReferences(prompt)) {
+          prompt = await resolveTurnReferences(prompt, sessionID);
+        }
+        
+        // Build model from override if present
+        let model: {providerID: string; modelID: string} | undefined;
+        if (parsed.overrides.model?.includes("/")) {
+          const [providerID, ...rest] = parsed.overrides.model.split("/");
+          model = {providerID, modelID: rest.join("/")};
+        }
+        
+        // Start loop if configured
+        const loopConfig = parsed.overrides.loop || loopOverride;
+        if (loopConfig) {
+          startLoop(sessionID, loopConfig, "_inline_subtask_", prompt);
+          log(`executeReturn: started inline subtask loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`);
+        }
+        
+        log(`executeReturn: inline subtask with prompt "${prompt.substring(0, 50)}..." (agent=${parsed.overrides.agent || "build"})`);
+        pendingParentSession = sessionID;
+        
+        try {
+          // Use promptAsync with subtask part to run as subtask
+          await client.session.promptAsync({
+            path: {id: sessionID},
+            body: {
+              parts: [{
+                type: "subtask",
+                agent: parsed.overrides.agent || "build",
+                model,
+                description: "Inline subtask",
+                prompt,
+              }],
+            },
+          });
+        } catch (e) {
+          log(`executeReturn inline subtask FAILED:`, e);
+        }
+        return;
+      }
+      
+      // Regular command execution
       let args = parsed.arguments || "";
 
       // Find the path key for this command (OpenCode needs full path for subfolder commands)
@@ -331,11 +380,11 @@ const plugin: Plugin = async (ctx) => {
         log(`executeReturn: stored model override for ${sessionID}: ${parsed.overrides.model}`);
       }
 
-      // Store retry config if present (inline takes precedence over passed-in)
-      const retryConfig = parsed.overrides.loop || retryOverride;
-      if (retryConfig) {
-        startLoop(sessionID, retryConfig, pathKey, args);
-        log(`executeReturn: started retry loop for ${sessionID}: max=${retryConfig.max}, until="${retryConfig.until}"`);
+      // Store loop config if present (inline takes precedence over passed-in)
+      const loopConfig = parsed.overrides.loop || loopOverride;
+      if (loopConfig) {
+        startLoop(sessionID, loopConfig, pathKey, args);
+        log(`executeReturn: started retry loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`);
       }
 
       // Check if we have piped args for this return command

@@ -159,6 +159,7 @@ export type SessionReference = TurnReference;
 
 export interface CommandOverrides {
   model?: string;
+  agent?: string;
   loop?: LoopConfig;
 }
 
@@ -166,10 +167,12 @@ export interface ParsedCommand {
   command: string;
   arguments?: string;
   overrides: CommandOverrides;
+  isInlineSubtask?: boolean;  // true for /{...} prompt syntax
 }
 
 /**
  * Parse a command string with optional overrides: /cmd{model:provider/model-id} args
+ * Also supports inline subtask syntax: /{loop:5,until:condition} prompt text
  * Syntax: /command{key:value,key2:value2} arguments
  * No space between command and {overrides}
  */
@@ -180,9 +183,22 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
     return {command: trimmed, overrides: {}};
   }
   
+  // Check for inline subtask syntax: /{...} prompt
+  const inlineMatch = trimmed.match(/^\/\{([^}]+)\}\s+(.+)$/s);
+  if (inlineMatch) {
+    const [, overridesStr, prompt] = inlineMatch;
+    const overrides = parseOverridesString(overridesStr);
+    return {
+      command: "",  // No command - inline prompt
+      arguments: prompt,
+      overrides,
+      isInlineSubtask: true,
+    };
+  }
+  
   // Match: /command{...} or /command
   // Pattern: /commandName{overrides} rest
-  const match = trimmed.match(/^\/([a-zA-Z0-9_\-\/]+)(\{([^}]+)\})?\s*(.*)$/);
+  const match = trimmed.match(/^\/([a-zA-Z0-9_\-\/]+)(\{([^}]+)\})?\s*(.*)$/s);
   
   if (!match) {
     // Fallback: just split on first space
@@ -191,40 +207,48 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
   }
   
   const [, commandName, , overridesStr, args] = match;
-  const overrides: CommandOverrides = {};
-  
-  if (overridesStr) {
-    // Parse key:value pairs separated by commas
-    const pairs = overridesStr.split(",");
-    for (const pair of pairs) {
-      const colonIdx = pair.indexOf(":");
-      if (colonIdx > 0) {
-        const key = pair.slice(0, colonIdx).trim();
-        const value = pair.slice(colonIdx + 1).trim();
-        if (key === "model") {
-          overrides.model = value;
-        } else if (key === "loop") {
-          // loop:10 - just max iterations, no until marker
-          const max = parseInt(value, 10);
-          if (!isNaN(max) && max > 0) {
-            overrides.loop = {max, until: ""};
-          }
-        } else if (key === "until") {
-          // until:condition - set/update until marker
-          if (!overrides.loop) {
-            overrides.loop = {max: 10, until: value}; // default max=10
-          } else {
-            overrides.loop.until = value;
-          }
-        }
-        // Can add more override keys here in the future
-      }
-    }
-  }
+  const overrides = overridesStr ? parseOverridesString(overridesStr) : {};
   
   return {
     command: commandName,
     arguments: args || undefined,
     overrides,
   };
+}
+
+/**
+ * Parse overrides string like "model:foo/bar,loop:10,until:condition"
+ */
+function parseOverridesString(overridesStr: string): CommandOverrides {
+  const overrides: CommandOverrides = {};
+  
+  // Parse key:value pairs separated by commas
+  const pairs = overridesStr.split(",");
+  for (const pair of pairs) {
+    const colonIdx = pair.indexOf(":");
+    if (colonIdx > 0) {
+      const key = pair.slice(0, colonIdx).trim();
+      const value = pair.slice(colonIdx + 1).trim();
+      if (key === "model") {
+        overrides.model = value;
+      } else if (key === "agent") {
+        overrides.agent = value;
+      } else if (key === "loop") {
+        // loop:10 - just max iterations, no until marker
+        const max = parseInt(value, 10);
+        if (!isNaN(max) && max > 0) {
+          overrides.loop = {max, until: ""};
+        }
+      } else if (key === "until") {
+        // until:condition - set/update until marker
+        if (!overrides.loop) {
+          overrides.loop = {max: 10, until: value}; // default max=10
+        } else {
+          overrides.loop.until = value;
+        }
+      }
+    }
+  }
+  
+  return overrides;
 }

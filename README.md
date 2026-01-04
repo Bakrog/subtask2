@@ -20,7 +20,9 @@ If you already know opencode commands, you'll be right at home.
 
 - `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
 - `{model:...}` override model inline - _pending PR ⚠️_
+- `{agent:...}` override agent inline
 - `{loop:N,until:X}` loop until condition (orchestrator-decides)
+- `/{...} prompt` inline subtasks without command files
 - `parallel` run subtasks concurrently - _pending PR ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe - _for any command_
 - `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
@@ -94,6 +96,48 @@ This lets you reuse a single command template with different models - no need to
 **Syntax:** `{model:provider/model-id}` - must be attached directly to the command (no space).
 
 **Priority:** inline `{model:...}` > frontmatter `model:` field
+
+### 2b. `{agent:...}` - Inline agent override
+
+Override the agent for any command invocation:
+
+```bash
+/research{agent:explore} find auth patterns
+```
+
+```yaml
+return:
+  - /implement{agent:build}
+  - /review{agent:plan}
+```
+
+**Syntax:** `{agent:agent-name}` - can be combined with other overrides.
+
+### 2c. `/{...} prompt` - Inline subtasks
+
+Create a subtask directly in return chains without needing a command file. Use `/{...}` followed by your prompt:
+
+```yaml
+return:
+  - /{loop:10,until:tests pass} Fix failing tests and run the suite
+  - /{model:openai/gpt-4o,agent:build} Implement the feature
+  - Summarize what was done
+```
+
+**Combining overrides:**
+
+```yaml
+return:
+  - /{model:anthropic/claude-sonnet-4,agent:build,loop:5,until:all done} Implement and verify the auth system
+```
+
+**When to use:**
+
+- Quick one-off subtasks that don't need a reusable command file
+- Inline loops with specific conditions
+- Mixing models/agents in a single workflow
+
+**Syntax:** `/{key:value,...} prompt text` - the `/` prefix with `{` indicates an inline subtask.
 
 ### 3. `{loop:N,until:X}` - Or the new 'look again' trick
 
