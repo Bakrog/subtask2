@@ -6,6 +6,7 @@ import {
   setPendingNonSubtaskReturns,
   getPendingModelOverride,
   deletePendingModelOverride,
+  setPendingParentSession,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
@@ -70,6 +71,11 @@ export async function commandExecuteBefore(
       `cmd.before: started retry loop: max=${activeRetry.max}, until="${activeRetry.until}"`
     );
   }
+
+  // Set pendingParentSession so tool-hooks can map the subtask session 
+  // back to this parent session (for loop state lookup and $TURN resolution)
+  setPendingParentSession(input.sessionID);
+  log(`cmd.before: set pendingParentSession=${input.sessionID}`);
 
   // Apply model override to subtask parts
   if (modelOverride) {

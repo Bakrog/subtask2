@@ -153,8 +153,11 @@ export async function toolExecuteAfter(input: any, output: any) {
   
   log(`tool.after: parentSession=${parentSession}, loopSession=${loopSession}, hasLoop=${!!retryLoop}, isInlineLoop=${isInlineLoopIteration}`);
   
-  if (!cmd && !isInlineLoopIteration) {
-    // Already processed or not our command (and not an inline loop iteration)
+  // Check if this is a frontmatter loop iteration (cmd may be undefined for subtask:true commands)
+  const isFrontmatterLoop = retryLoop && retryLoop.commandName !== "_inline_subtask_";
+  
+  if (!cmd && !isInlineLoopIteration && !isFrontmatterLoop) {
+    // Already processed or not our command (and not a loop iteration)
     return;
   }
   if (cmd) {
@@ -176,7 +179,12 @@ export async function toolExecuteAfter(input: any, output: any) {
   );
 
   // For inline subtasks, cmd is undefined but commandName is "_inline_subtask_"
-  const isLoopIteration = retryLoop && (cmd === retryLoop.commandName || isInlineLoopIteration);
+  // For frontmatter loops on subtask:true commands, cmd may be undefined but mainCmd matches
+  const isLoopIteration = retryLoop && (
+    cmd === retryLoop.commandName || 
+    mainCmd === retryLoop.commandName || 
+    isInlineLoopIteration
+  );
   
   // Clear command flag when inline subtask completes
   if (retryLoop?.commandName === "_inline_subtask_") {
