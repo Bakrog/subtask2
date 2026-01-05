@@ -1,38 +1,43 @@
 ## Extend opencode `/commands` into a powerful orchestration system
 
-![citation](media/quote.webp)
+### TL:DR - A less entropic agentic loop with more control
 
-### TL:DR - A less entropic agentic loop with more user flow control
+This plugin allows your opencode `/commands` to:
 
-This plugin allows your `/commands` to:
+- **Chain** `prompts`, `/commands` and `subagents`
+- **Relay** selective session context to subagents
+- **Loop** or **parallelize** tasks
+- **Steer** the outcome of the agentic flow
+- **Transform** flows into workflows
 
-- Queue-up `prompts` or other `/commands` and `subagents` with arguments
-- Parallelize the parts you want
-- Pass session context to subagents
-- Steer the agentic flow from start to finish
-
-If you already know opencode commands, you'll be right at home.
+If you already know opencode `/commands`, you'll be right at home, if not, start with [opencode's docs](https://opencode.ai/docs/commands/)
 
 ![subtask2 header](media/header.webp)
-`@openspoon/subtask2@latest`
+![citation](media/quote.webp)
 
-### Key features
+**To install**, add subtask2 to your opencode configuration
 
-- `return` instruct main session on **command/subtask(s)** result - _can be chained, supports /commands_
-- `{model:...}` override model inline - _pending PR ⚠️_
-- `{agent:...}` override agent inline
-- `{loop:N,until:X}` loop until condition (orchestrator-decides)
-- `/subtask{...} prompt` inline subtasks without command files (in `return:` or chat)
-- `parallel` run subtasks concurrently - _pending PR ⚠️_
-- `arguments` pass arguments with command frontmatter or `||` message pipe - _for any command_
-- `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
-
-Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
+```json
+{
+  "plugins": ["@openspoon/subtask2@latest"]
+}
+```
 
 ---
 
 <details>
 <summary><strong>Feature documentation</strong></summary>
+
+### Key Features
+
+- `return` instruct main session on command/subtask(s) result - _can be chained_
+- `loop` loop subtask until user condition is met
+- `parallel` run subtasks concurrently - _pending PR ⚠️_
+- `arguments` pass arguments with command frontmatter or `||` message pipe - _to any command_
+- `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
+- `agent`/`model`/`loop` inline override and subtask trigger
+
+Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
 ### 1. `return` - Or the old 'look again' trick
 
@@ -286,7 +291,7 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
   "replace_generic": true, // defaults to true
 
   // Custom fallback (optional - has built-in default)
-  "generic_return": "custom return prompt",
+  "generic_return": "custom return prompt"
 }
 ```
 
@@ -411,69 +416,3 @@ Conceptually design a React modal component with the following requirements
 ```
 
 </details>
-
-<details>
-<summary><strong>Demo files</strong></summary>
-
-Prompt used in the demo:
-`/subtask2 10 || pipe2 || pipe3 || pipe4 || pipe5`
-
-`subtask2.md`
-
-```yaml
----
-description: subtask2 plugin test command
-agent: build
-subtask: true
-parallel: /subtask2-parallel-test PARALLEL
-return:
-  - say the phrase "THE RETURN PROMPT MADE ME SAY THIS" and do NOTHING else
-  - say the phrase "YOU CAN CHAIN PROMPTS, COMMANDS, OR SUBTASKS - NO LIMITS" and do NOTHING else
-  - /subtask2-nested-parallel CHAINED-COMMAND-SUBTASK
----
-please count to $ARGUMENTS
-```
-
-`subtask2-parallel-test.md`
-
-```yaml
----
-agent: plan
-model: github-copilot/grok-code-fast-1
-parallel: /subtask2-nested-parallel NESTED-PARALLEL
-subtask: true
----
-say the word "$ARGUMENTS" 3 times
-```
-
-`subtask2-nested-parallel.md`
-
-```yaml
----
-agent: explore
-model: github-copilot/gpt-4.1
-subtask: true
-return:
-  - say the phrase "COMPOSE AS SIMPLE OR COMPLEX A WORKFLOW AS YOU WANT" and do NOTHING else
-  - /subtask2-parallel-test LAST CALL
----
-say the word "$ARGUMENTS" 3 times
-```
-
-</details>
-
-<details>
-<summary><strong>Installation</strong></summary>
-To install, add subtask2 to your opencode config plugin array
-
-```json
-{
-  "plugins": ["@openspoon/subtask2@latest"]
-}
-```
-
-</details>
-
----
-
-![Watch demo](media/demo.gif)
