@@ -9,7 +9,7 @@ export const DEFAULT_RETURN_PROMPT =
   "Review, challenge and validate the task output against the codebase then continue with the next logical step.";
 
 /**
- * Instruction for /s2 inline subtask - makes LLM say minimal response while subtask runs
+ * Instruction for /subtask inline subtask - makes LLM say minimal response while subtask runs
  */
 export const S2_INLINE_INSTRUCTION = `<system>Say this phrase EXACTLY and nothing else: "Running subagent..."</system>`;
 
@@ -35,9 +35,9 @@ You may read files, check git diff/status, run tests, or do whatever verificatio
 
 > DO NOT WRITE OR EDIT ANY FILES - YOU ARE ONLY TO EVALUATE AND REPORT
 
-After evaluation, respond with ONE of:
-- <subtask2 loop=break/> - loop condition satisfied, proceed to next step
-- <subtask2 loop=continue/> - more work needed, loop again
+After evaluation:
+- If the condition IS satisfied: respond with <subtask2 loop=break/> to exit the loop
+- If not, the loop will re-run after you yield back
 
 You may now proceed with the evaluation.
 </instructions>`;

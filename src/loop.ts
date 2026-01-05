@@ -19,16 +19,12 @@ export { loopEvaluationPrompt as createEvaluationPrompt } from "./utils/prompts"
 
 /**
  * Parse the main LLM's response for loop decision
- * Supports: <subtask2 loop=break/>, <subtask2 loop="break"/>, <subtask2 loop='break'/>
+ * Only looks for break signal: <subtask2 loop=break/>, <subtask2 loop="break"/>, <subtask2 loop='break'/>
+ * If no break signal found, loop continues by default (until max iterations)
  */
-export function parseLoopDecision(output: string): "break" | "continue" | null {
-  const match = output.match(
-    /<subtask2\s+loop=["']?(break|continue)["']?\s*\/?>/i
-  );
-  if (match) {
-    return match[1].toLowerCase() as "break" | "continue";
-  }
-  return null;
+export function parseLoopDecision(output: string): "break" | "continue" {
+  const match = output.match(/<subtask2\s+loop=["']?break["']?\s*\/?>/i);
+  return match ? "break" : "continue";
 }
 
 /**
