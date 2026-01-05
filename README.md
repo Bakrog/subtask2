@@ -341,12 +341,6 @@ $TURN[10]
 /my-command analyze this $TURN[5]
 ```
 
-**Syntax:**
-
-- `$TURN[12]` - last 12 messages (turns, not parts)
-- `$TURN[:3]` - just the 3rd message from the end
-- `$TURN[:2:5:8]` - specific messages at indices 2, 5, and 8 from the end
-
 **Format output:**
 
 ```
