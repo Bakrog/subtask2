@@ -21,10 +21,10 @@ import {
 
 /**
  * Hook: experimental.chat.messages.transform
- * Handles /s2{...} inline subtasks and return prompt injection
+ * Handles /subtask{...} inline subtasks and return prompt injection
  */
 export async function chatMessagesTransform(input: any, output: any) {
-  // Check for /s2{...} or /s2 inline subtask in user messages
+  // Check for /subtask{...} or /subtask inline subtask in user messages
   for (const msg of output.messages) {
     if (msg.info?.role !== "user") continue;
 
@@ -36,23 +36,24 @@ export async function chatMessagesTransform(input: any, output: any) {
       if (part.type !== "text") continue;
       const text = part.text.trim();
 
-      // Match /s2{...} or /s2 (space)
+      // Match /subtask{...} or /subtask (space) - case insensitive
       const textLower = text.toLowerCase();
-      if (textLower.startsWith("/s2{") || textLower.startsWith("/s2 ")) {
-        log(`/s2 detected in message: "${text.substring(0, 60)}..."`);
+      if (textLower.startsWith("/subtask{") || textLower.startsWith("/subtask ")) {
+        log(`/subtask detected in message: "${text.substring(0, 60)}..."`);
 
         // Mark as processed BEFORE spawning
         if (msgId) addProcessedS2Message(msgId);
 
-        // Parse: remove "/s2" prefix, parseInlineSubtask handles both {overrides} and plain prompt
-        const toParse = text.startsWith("/s2{")
-          ? text.substring(3)
-          : `{} ${text.substring(4)}`;
+        // Parse: remove "/subtask" prefix, parseInlineSubtask handles both {overrides} and plain prompt
+        const prefixLen = "/subtask".length;
+        const toParse = textLower.startsWith("/subtask{")
+          ? text.substring(prefixLen)
+          : `{} ${text.substring(prefixLen + 1)}`;
         const parsed = parseInlineSubtask(toParse);
 
         if (parsed) {
           log(
-            `/s2 inline subtask: prompt="${parsed.prompt.substring(
+            `/subtask inline subtask: prompt="${parsed.prompt.substring(
               0,
               50
             )}...", overrides=${JSON.stringify(parsed.overrides)}`
@@ -62,15 +63,15 @@ export async function chatMessagesTransform(input: any, output: any) {
           // Spawn the subtask - get sessionID from message info
           const sessionID =
             (msg.info as any)?.sessionID || (input as any).sessionID;
-          log(`/s2 sessionID: ${sessionID}`);
+          log(`/subtask sessionID: ${sessionID}`);
           if (sessionID) {
             executeInlineSubtask(parsed, sessionID).catch(console.error);
           } else {
-            log(`/s2 ERROR: no sessionID found`);
+            log(`/subtask ERROR: no sessionID found`);
           }
           return;
         } else {
-          log(`/s2 parse failed for: "${toParse}"`);
+          log(`/subtask parse failed for: "${toParse}"`);
         }
       }
     }

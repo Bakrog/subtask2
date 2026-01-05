@@ -22,8 +22,7 @@ If you already know opencode commands, you'll be right at home.
 - `{model:...}` override model inline - _pending PR ⚠️_
 - `{agent:...}` override agent inline
 - `{loop:N,until:X}` loop until condition (orchestrator-decides)
-- `/{...} prompt` inline subtasks without command files (in `return:`)
-- `/s2{...} prompt` inline subtasks from chat input
+- `/subtask{...} prompt` inline subtasks without command files (in `return:` or chat)
 - `parallel` run subtasks concurrently - _pending PR ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe - _for any command_
 - `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
@@ -114,14 +113,14 @@ return:
 
 **Syntax:** `{agent:agent-name}` - can be combined with other overrides.
 
-### 2c. `/{...} prompt` - Inline subtasks
+### 2c. `/subtask{...} prompt` - Inline subtasks
 
-Create a subtask directly in return chains without needing a command file. Use `/{...}` followed by your prompt:
+Create a subtask directly in return chains or chat without needing a command file. Use `/subtask{...}` followed by your prompt:
 
 ```yaml
 return:
-  - /{loop:10,until:tests pass} Fix failing tests and run the suite
-  - /{model:openai/gpt-4o,agent:build} Implement the feature
+  - /subtask{loop:10,until:tests pass} Fix failing tests and run the suite
+  - /subtask{model:openai/gpt-4o,agent:build} Implement the feature
   - Summarize what was done
 ```
 
@@ -129,7 +128,7 @@ return:
 
 ```yaml
 return:
-  - /{model:anthropic/claude-sonnet-4,agent:build,loop:5,until:all done} Implement and verify the auth system
+  - /subtask{model:anthropic/claude-sonnet-4,agent:build,loop:5,until:all done} Implement and verify the auth system
 ```
 
 **When to use:**
@@ -138,16 +137,16 @@ return:
 - Inline loops with specific conditions
 - Mixing models/agents in a single workflow
 
-**Syntax:** `/{key:value,...} prompt text` - the `/` prefix with `{` indicates an inline subtask.
+**Syntax:** `/subtask{key:value,...} prompt text` - the `/subtask` prefix with `{` indicates an inline subtask.
 
-### 2d. `/s2{...} prompt` - Inline subtasks from chat
+### 2d. `/subtask prompt` - Simple inline subtasks from chat
 
-Same as `/{...}` but for direct chat input:
+For simple subtasks without overrides:
 
 ```bash
-/s2 tell me a joke                              # simple subtask
-/s2{model:openai/gpt-4o} analyze this code      # with model override
-/s2{agent:build,loop:3,until:all tests pass} my tests are failing, please advise  # with agent + loop
+/subtask tell me a joke                              # simple subtask
+/subtask{model:openai/gpt-4o} analyze this code      # with model override
+/subtask{agent:build,loop:3,until:all tests pass} my tests are failing, please advise  # with agent + loop
 ```
 
 This lets you spawn ad-hoc subtasks without creating command files or using return chains.

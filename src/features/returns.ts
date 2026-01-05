@@ -36,11 +36,11 @@ export async function executeReturn(
 
   if (item.startsWith("/")) {
     // Parse command with potential overrides: /cmd{model:provider/id,loop:5,until:DONE} args
-    // Also handles inline subtask syntax: /{loop:5,until:condition} prompt text
+    // Also handles inline subtask syntax: /s2{loop:5,until:condition} prompt text
     const parsed = parseCommandWithOverrides(item);
 
     if (parsed.isInlineSubtask) {
-      // Inline subtask: /{overrides} prompt - execute as subtask without command file
+      // Inline subtask: /s2{overrides} prompt - execute as subtask without command file
       let prompt = parsed.arguments || "";
 
       // Resolve $TURN references in the prompt
