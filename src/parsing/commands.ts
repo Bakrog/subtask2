@@ -1,0 +1,117 @@
+import { parseOverridesString, type CommandOverrides } from "./overrides";
+
+export interface ParsedCommand {
+  command: string;
+  arguments?: string;
+  overrides: CommandOverrides;
+  isInlineSubtask?: boolean; // true for /{...} prompt syntax
+}
+
+/**
+ * Parse a command string with optional overrides: /cmd{model:provider/model-id} args
+ * Also supports inline subtask syntax: /{loop:5,until:condition} prompt text
+ * Syntax: /command{key:value,key2:value2} arguments
+ * No space between command and {overrides}
+ */
+export function parseCommandWithOverrides(input: string): ParsedCommand {
+  const trimmed = input.trim();
+
+  if (!trimmed.startsWith("/")) {
+    return { command: trimmed, overrides: {} };
+  }
+
+  // Check for inline subtask syntax: /{...} prompt
+  const inlineMatch = trimmed.match(/^\/\{([^}]+)\}\s+(.+)$/s);
+  if (inlineMatch) {
+    const [, overridesStr, prompt] = inlineMatch;
+    const overrides = parseOverridesString(overridesStr);
+    return {
+      command: "", // No command - inline prompt
+      arguments: prompt,
+      overrides,
+      isInlineSubtask: true,
+    };
+  }
+
+  // Match: /command{...} or /command
+  // Pattern: /commandName{overrides} rest
+  const match = trimmed.match(/^\/([a-zA-Z0-9_\-\/]+)(\{([^}]+)\})?\s*(.*)$/s);
+
+  if (!match) {
+    // Fallback: just split on first space
+    const [cmd, ...rest] = trimmed.slice(1).split(/\s+/);
+    return {
+      command: cmd,
+      arguments: rest.join(" ") || undefined,
+      overrides: {},
+    };
+  }
+
+  const [, commandName, , overridesStr, args] = match;
+  const overrides = overridesStr ? parseOverridesString(overridesStr) : {};
+
+  return {
+    command: commandName,
+    arguments: args || undefined,
+    overrides,
+  };
+}
+
+export interface ParsedInlineSubtask {
+  prompt: string;
+  overrides: CommandOverrides;
+}
+
+/**
+ * Parse /s2{...} prompt or /{...} prompt inline subtask syntax
+ * Input should NOT include the /s2 or / prefix
+ * Returns null if not valid inline subtask syntax
+ */
+export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
+  const trimmed = input.trim();
+
+  // Must start with {
+  if (!trimmed.startsWith("{")) return null;
+
+  const braceEnd = trimmed.indexOf("}");
+  if (braceEnd === -1) return null;
+
+  const overrideStr = trimmed.substring(1, braceEnd);
+  const prompt = trimmed.substring(braceEnd + 1).trim();
+
+  if (!prompt) return null;
+
+  // Parse overrides
+  const overrides: CommandOverrides = {};
+  const pairs = overrideStr.split(",");
+
+  for (const pair of pairs) {
+    const colonIdx = pair.indexOf(":");
+    if (colonIdx === -1) continue;
+
+    const key = pair.substring(0, colonIdx).trim().toLowerCase();
+    const value = pair.substring(colonIdx + 1).trim();
+
+    if (key === "model") {
+      overrides.model = value;
+    } else if (key === "agent") {
+      overrides.agent = value;
+    } else if (key === "loop") {
+      const max = parseInt(value, 10);
+      if (!isNaN(max) && max > 0) {
+        overrides.loop = { max, until: "" };
+      }
+    } else if (key === "until") {
+      if (!overrides.loop) {
+        overrides.loop = { max: 10, until: value };
+      } else {
+        overrides.loop.until = value;
+      }
+    }
+  }
+
+  return { prompt, overrides };
+}
+
+// Re-export CommandOverrides for convenience
+export type { CommandOverrides };
