@@ -44,7 +44,8 @@ export async function executeInlineSubtask(
       parsed.overrides.loop,
       "_inline_subtask_",
       prompt,
-      parsed.overrides.model
+      parsed.overrides.model,
+      parsed.overrides.agent
     );
     log(
       `inline subtask: started loop for "${parsed.overrides.loop.until}" max=${parsed.overrides.loop.max}`

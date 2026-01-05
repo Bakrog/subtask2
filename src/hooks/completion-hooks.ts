@@ -54,6 +54,14 @@ export async function textComplete(input: any) {
         if (state.commandName === "_inline_subtask_") {
           // Re-execute inline subtask directly via promptAsync
           log(`retry: re-executing inline subtask with prompt "${state.arguments?.substring(0, 50)}..."`);
+          
+          // Build model from override if present
+          let model: { providerID: string; modelID: string } | undefined;
+          if (state.model?.includes("/")) {
+            const [providerID, ...rest] = state.model.split("/");
+            model = { providerID, modelID: rest.join("/") };
+          }
+          
           try {
             await client.session.promptAsync({
               path: { id: input.sessionID },
@@ -61,7 +69,8 @@ export async function textComplete(input: any) {
                 parts: [
                   {
                     type: "subtask",
-                    agent: "build",
+                    agent: state.agent || "build",
+                    model,
                     description: "Inline subtask (retry)",
                     prompt: state.arguments || "",
                   },

@@ -58,7 +58,7 @@ export async function executeReturn(
       // Start loop if configured
       const loopConfig = parsed.overrides.loop || loopOverride;
       if (loopConfig) {
-        startLoop(sessionID, loopConfig, "_inline_subtask_", prompt);
+        startLoop(sessionID, loopConfig, "_inline_subtask_", prompt, parsed.overrides.model, parsed.overrides.agent);
         log(
           `executeReturn: started inline subtask loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`
         );
@@ -121,7 +121,7 @@ export async function executeReturn(
     // Store loop config if present (inline takes precedence over passed-in)
     const loopConfig = parsed.overrides.loop || loopOverride;
     if (loopConfig) {
-      startLoop(sessionID, loopConfig, pathKey, args);
+      startLoop(sessionID, loopConfig, pathKey, args, parsed.overrides.model);
       log(
         `executeReturn: started retry loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`
       );

@@ -225,7 +225,12 @@ export async function toolExecuteAfter(input: any, output: any) {
       );
       setPendingReturn(returnSession, cmdConfig.return[0]);
     } else {
-      log(`Skipping pendingReturn - already set for ${returnSession}`);
+      log(`Skipping duplicate main command - pendingReturn already set`);
+      // Clear any loop state that may have been set by the duplicate
+      if (retryLoop) {
+        clearLoop(loopSession);
+        clearPendingEvaluation(loopSession);
+      }
     }
   } else if (cmd && cmd !== mainCmd) {
     log(`task.after: ${cmd} (parallel of ${mainCmd})`);
