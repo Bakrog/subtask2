@@ -1,6 +1,6 @@
 import { getClient, registerPendingParentForPrompt, setReturnState } from "../core/state";
 import { log } from "../utils/logger";
-import { AUTO_WORKFLOW_PROMPT } from "../utils/prompts";
+import { getAutoWorkflowPrompt } from "../utils/prompts";
 
 /**
  * Execute a subtask2: auto workflow
@@ -16,8 +16,9 @@ export async function executeAutoWorkflow(
 ): Promise<void> {
   const client = getClient();
 
-  // Build the prompt
-  const prompt = AUTO_WORKFLOW_PROMPT + userArguments;
+  // Build the prompt with README content injected
+  const autoPrompt = await getAutoWorkflowPrompt();
+  const prompt = autoPrompt + userArguments;
 
   log(`executeAutoWorkflow: starting auto workflow with args="${userArguments.substring(0, 50)}..."`);
 

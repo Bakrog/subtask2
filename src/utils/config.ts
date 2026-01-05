@@ -1,11 +1,51 @@
 /// <reference types="bun-types" />
 
+import { dirname, join } from "path";
 import type { Subtask2Config } from "../types";
 
 // Re-export from prompts.ts for backwards compatibility
 export { DEFAULT_RETURN_PROMPT as DEFAULT_PROMPT } from "./prompts";
 
 const CONFIG_PATH = `${Bun.env.HOME ?? ""}/.config/opencode/subtask2.jsonc`;
+
+/**
+ * Cached README content
+ */
+let cachedReadmeContent: string | null = null;
+
+/**
+ * Reset the README cache (for testing)
+ */
+export function _resetReadmeCache(): void {
+  cachedReadmeContent = null;
+}
+
+/**
+ * Load README.md content from plugin root
+ */
+export async function loadReadmeContent(): Promise<string> {
+  if (cachedReadmeContent !== null) {
+    return cachedReadmeContent;
+  }
+
+  try {
+    // Navigate from src/utils/config.ts to plugin root
+    const pluginRoot = join(dirname(import.meta.path), "..", "..");
+    const readmePath = join(pluginRoot, "README.md");
+    const file = Bun.file(readmePath);
+
+    if (await file.exists()) {
+      cachedReadmeContent = await file.text();
+      return cachedReadmeContent;
+    }
+  } catch {
+    // Fall through to fallback
+  }
+
+  // Fallback if README can't be loaded
+  cachedReadmeContent = `[README could not be loaded - see https://github.com/openspoon/subtask2 for documentation]`;
+  return cachedReadmeContent;
+}
 
 function isValidConfig(obj: unknown): obj is Subtask2Config {
   if (typeof obj !== "object" || obj === null) return false;

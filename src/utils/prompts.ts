@@ -2,6 +2,11 @@
  * All prompts used by subtask2 plugin - centralized for easy editing
  */
 
+import { loadReadmeContent } from "./config";
+
+// Re-export for backwards compatibility
+export { _resetReadmeCache } from "./config";
+
 /**
  * Default return prompt when no return is specified and replace_generic is true
  */
@@ -9,12 +14,17 @@ export const DEFAULT_RETURN_PROMPT =
   "Review, challenge and validate the task output against the codebase then continue with the next logical step.";
 
 /**
+ * Placeholder for README content in auto workflow prompt
+ */
+const README_PLACEHOLDER = "{{SUBTASK2_README}}";
+
+/**
  * Instruction for /subtask inline subtask - makes LLM say minimal response while subtask runs
  */
 export const S2_INLINE_INSTRUCTION = `<system>Say this phrase EXACTLY and nothing else: "Running subagent..."</system>`;
 
 /**
- * Loop evaluation prompt - injected after subtask completes for orchestrator to decide
+ * Loop evaluation prompt - used as subtask return
  */
 export function loopEvaluationPrompt(
   condition: string,
@@ -56,35 +66,25 @@ Please yield back now to allow the next iteration to run.
 
 /**
  * Auto workflow generation prompt - teaches LLM to generate subtask2 inline syntax
+ * Contains {{SUBTASK2_README}} placeholder that gets replaced with actual README content
  */
-export const AUTO_WORKFLOW_PROMPT = `You are tasked with creating a subtask2 command workflow to fulfill the user's request.
+export const AUTO_WORKFLOW_PROMPT_TEMPLATE = `You are tasked with creating a subtask2 command workflow to fulfill the user's request.
 
-## Subtask2 Inline Syntax
+## Subtask2 Plugin Documentation
 
-Create a workflow using this inline syntax:
-\`\`\`
-/subtask{param && param && ...} prompt text
-\`\`\`
+The following is the complete documentation for the subtask2 plugin. Study it carefully to understand all available features.
 
-### Available Parameters (separated by &&):
+<subtask2-readme>
+${README_PLACEHOLDER}
+</subtask2-readme>
 
-- \`model:provider/model-id\` - Override the model
-- \`agent:agent-name\` - Override the agent (build, plan, explore)
-- \`loop:N\` - Run exactly N times (unconditional)
-- \`loop:N && until:condition\` - Run up to N times until condition met
-- \`return:prompt1 || prompt2 || prompt3\` - Chain of prompts/commands to execute after
-- \`parallel:/cmd1 args || /cmd2 args\` - Run multiple subtasks concurrently
+## Your Task
 
-### Examples:
+Using the subtask2 inline syntax documented above, create a workflow to fulfill the user's request.
 
-- Simple: \`/subtask{agent:build} implement the auth system\`
-- With returns: \`/subtask{return:validate the output || run the tests} build the feature\`
-- With loop: \`/subtask{loop:5 && until:all tests pass} fix the failing tests\`
-- Complex: \`/subtask{model:openai/gpt-4o && return:review || test || deploy} implement $FEATURE\`
+### Output Format
 
-### Rules:
-
-1. Output your reasoning first
+1. Output your reasoning first - analyze what the user needs and how to best structure the workflow
 2. Then output the workflow inside: <subtask2 auto="true">...</subtask2>
 3. The workflow must be a single /subtask{...} command with inline syntax
 4. Do NOT create files - the workflow executes in memory
@@ -93,3 +93,23 @@ Create a workflow using this inline syntax:
 
 USER INPUT:
 `;
+
+/**
+ * Get the auto workflow prompt with README content injected
+ */
+export async function getAutoWorkflowPrompt(): Promise<string> {
+  const readmeContent = await loadReadmeContent();
+  return AUTO_WORKFLOW_PROMPT_TEMPLATE.replace(
+    README_PLACEHOLDER,
+    readmeContent
+  );
+}
+
+/**
+ * @deprecated Use getAutoWorkflowPrompt() instead - this is kept for backwards compatibility
+ * but will use a static fallback without the full README
+ */
+export const AUTO_WORKFLOW_PROMPT = AUTO_WORKFLOW_PROMPT_TEMPLATE.replace(
+  README_PLACEHOLDER,
+  "[Use getAutoWorkflowPrompt() to get full documentation]"
+);
