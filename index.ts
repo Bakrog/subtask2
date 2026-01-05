@@ -51,16 +51,18 @@ const processedS2Messages = new Set<string>();
 const executedReturns = new Set<string>();
 // Track the first return prompt per session (replaces "Summarize..." in $SESSION)
 const firstReturnPrompt = new Map<string, string>();
-// Track if last return was a plain prompt (not a command) - don't advance from text.complete
-const pendingPlainPromptReturn = new Set<string>();
 
 // Track parent session for commands called via executeReturn
 // Simple variable: set before command call, used by tool.execute.before
 let pendingParentSession: string | null = null;
 let hasActiveSubtask = false;
+// Track subtask session -> parent session mapping for inline loops
+const subtaskParentSession = new Map<string, string>();
 // Track model override for next command execution (set by executeReturn, consumed by command.execute.before)
 const pendingModelOverride = new Map<string, string>();
 const lastReturnWasCommand = new Map<string, boolean>();
+// Track when a plain prompt return was just set - skip one text.complete cycle
+
 
 const OPENCODE_GENERIC =
   "Summarize the task tool output above and continue with your task.";
@@ -534,8 +536,6 @@ const plugin: Plugin = async ctx => {
       }
     } else {
       log(`executeReturn: prompt "${item.substring(0, 40)}..."`);
-      // Mark this as a plain prompt - don't advance from text.complete until LLM finishes
-      pendingPlainPromptReturn.add(sessionID);
       await client.session.promptAsync({
         path: { id: sessionID },
         body: { parts: [{ type: "text", text: item }] },
@@ -701,6 +701,12 @@ const plugin: Plugin = async ctx => {
       const description = output.args?.description;
       let mainCmd = sessionMainCommand.get(input.sessionID);
 
+      // Track parent session for inline subtasks (so tool.execute.after can find the loop state)
+      if (pendingParentSession && pendingParentSession !== input.sessionID) {
+        subtaskParentSession.set(input.sessionID, pendingParentSession);
+        log(`tool.before: mapped subtask ${input.sessionID} -> parent ${pendingParentSession}`);
+      }
+
       log(
         `tool.before: callID=${
           input.callID
@@ -787,29 +793,42 @@ const plugin: Plugin = async ctx => {
         `tool.after: callID=${input.callID}, cmd=${cmd}, wasTracked=${!!cmd}`
       );
 
-      if (!cmd) {
-        // Already processed or not our command
+      // Check for active retry loop - inline subtasks have cmd=undefined
+      // For inline subtasks, the loop state is on the PARENT session, not the subtask session
+      const parentSession = subtaskParentSession.get(input.sessionID);
+      const loopSession = parentSession || input.sessionID;
+      const retryLoop = getLoopState(loopSession);
+      const isInlineLoopIteration = retryLoop?.commandName === "_inline_subtask_";
+      
+      log(`tool.after: parentSession=${parentSession}, loopSession=${loopSession}, hasLoop=${!!retryLoop}, isInlineLoop=${isInlineLoopIteration}`);
+      
+      if (!cmd && !isInlineLoopIteration) {
+        // Already processed or not our command (and not an inline loop iteration)
         return;
       }
-      callState.delete(input.callID);
+      if (cmd) {
+        callState.delete(input.callID);
+      }
+      // Clean up parent session mapping
+      if (parentSession) {
+        subtaskParentSession.delete(input.sessionID);
+      }
 
-      const mainCmd = sessionMainCommand.get(input.sessionID);
+      const mainCmd = sessionMainCommand.get(loopSession) || sessionMainCommand.get(input.sessionID);
       const cmdConfig = cmd ? getConfig(configs, cmd) : undefined;
 
       log(
         `tool.after: cmd=${cmd}, mainCmd=${mainCmd}, isMain=${
           cmd === mainCmd
-        }, hasReturn=${!!cmdConfig?.return?.length}`
+        }, hasReturn=${!!cmdConfig?.return?.length}, isInlineLoop=${isInlineLoopIteration}`
       );
 
-      // Check for active retry loop - if this is a retry command, set up evaluation
-      const retryLoop = getLoopState(input.sessionID);
       // For inline subtasks, cmd is undefined but commandName is "_inline_subtask_"
-      const isLoopIteration = retryLoop && (cmd === retryLoop.commandName || retryLoop.commandName === "_inline_subtask_");
+      const isLoopIteration = retryLoop && (cmd === retryLoop.commandName || isInlineLoopIteration);
       
       // Clear command flag when inline subtask completes
       if (retryLoop?.commandName === "_inline_subtask_") {
-        lastReturnWasCommand.delete(input.sessionID);
+        lastReturnWasCommand.delete(loopSession);
       }
       
       if (isLoopIteration) {
@@ -818,16 +837,16 @@ const plugin: Plugin = async ctx => {
         );
 
         // Check if max iterations reached
-        if (isMaxIterationsReached(input.sessionID)) {
+        if (isMaxIterationsReached(loopSession)) {
           log(
             `retry: MAX ITERATIONS reached (${retryLoop.config.max}), stopping`
           );
-          clearLoop(input.sessionID);
-          clearPendingEvaluation(input.sessionID);
+          clearLoop(loopSession);
+          clearPendingEvaluation(loopSession);
           // Continue with normal return flow
         } else {
           // Store state for evaluation - main LLM will decide if we continue
-          setPendingEvaluation(input.sessionID, { ...retryLoop });
+          setPendingEvaluation(loopSession, { ...retryLoop });
           log(
             `retry: pending evaluation for condition "${retryLoop.config.until}"`
           );
@@ -835,19 +854,16 @@ const plugin: Plugin = async ctx => {
         }
       }
 
+      // For inline loops, set pendingReturn on the parent session for evaluation
+      const returnSession = isInlineLoopIteration ? loopSession : input.sessionID;
+      
       if (cmd && cmd === mainCmd && cmdConfig?.return?.length) {
         // Only set pendingReturn if we haven't already
-        if (!pendingReturns.has(input.sessionID)) {
+        if (!pendingReturns.has(returnSession)) {
           log(
             `Setting pendingReturn: ${cmdConfig.return[0].substring(0, 50)}...`
           );
-          pendingReturns.set(input.sessionID, cmdConfig.return[0]);
-          // If first return is a plain prompt (not a command), mark it so we wait for LLM to finish
-          const firstReturn = cmdConfig.return[0].trim();
-          if (!firstReturn.startsWith("/")) {
-            pendingPlainPromptReturn.add(input.sessionID);
-            log(`Marked as plain prompt return - will wait for LLM to finish`);
-          }
+          pendingReturns.set(returnSession, cmdConfig.return[0]);
         } else {
           log(`Skipping pendingReturn - already set`);
         }
@@ -938,14 +954,17 @@ const plugin: Plugin = async ctx => {
 
         // Check for pending return
         for (const [sessionID, returnPrompt] of pendingReturns) {
+          pendingReturns.delete(sessionID);
+          hasActiveSubtask = false;
           if (returnPrompt.startsWith("/")) {
+            // Command return: clear text and execute command
             lastGenericPart.text = "";
             executeReturn(returnPrompt, sessionID).catch(console.error);
           } else {
+            // Plain prompt return: replace generic message with the prompt text
+            // This becomes the assistant's message - no LLM call needed
             lastGenericPart.text = returnPrompt;
           }
-          pendingReturns.delete(sessionID);
-          hasActiveSubtask = false;
           return;
         }
 
@@ -960,7 +979,7 @@ const plugin: Plugin = async ctx => {
     },
 
     "experimental.text.complete": async input => {
-      log(`text.complete: sessionID=${input.sessionID}, hasReturnState=${returnState.has(input.sessionID)}, hasPendingPlain=${pendingPlainPromptReturn.has(input.sessionID)}`);
+      log(`text.complete: sessionID=${input.sessionID}, hasReturnState=${returnState.has(input.sessionID)}`);
       
       // Check for loop evaluation response (orchestrator-decides pattern)
       const evalState = getPendingEvaluation(input.sessionID);
@@ -986,12 +1005,35 @@ const plugin: Plugin = async ctx => {
             log(
               `retry: continuing iteration ${state.iteration}/${state.config.max}`
             );
-            // Re-execute the command
-            const cmdWithArgs = `/${state.commandName}${
-              state.arguments ? " " + state.arguments : ""
-            }`;
-            executedReturns.delete(`${input.sessionID}:${cmdWithArgs}`);
-            executeReturn(cmdWithArgs, input.sessionID).catch(console.error);
+            
+            if (state.commandName === "_inline_subtask_") {
+              // Re-execute inline subtask directly via promptAsync
+              log(`retry: re-executing inline subtask with prompt "${state.arguments?.substring(0, 50)}..."`);
+              try {
+                await client.session.promptAsync({
+                  path: { id: input.sessionID },
+                  body: {
+                    parts: [
+                      {
+                        type: "subtask",
+                        agent: "build",
+                        description: "Inline subtask (retry)",
+                        prompt: state.arguments || "",
+                      },
+                    ],
+                  },
+                });
+              } catch (e) {
+                log(`retry: inline subtask failed:`, e);
+              }
+            } else {
+              // Re-execute the command
+              const cmdWithArgs = `/${state.commandName}${
+                state.arguments ? " " + state.arguments : ""
+              }`;
+              executedReturns.delete(`${input.sessionID}:${cmdWithArgs}`);
+              executeReturn(cmdWithArgs, input.sessionID).catch(console.error);
+            }
             return;
           }
         } else {
@@ -1015,19 +1057,13 @@ const plugin: Plugin = async ctx => {
       const remaining = returnState.get(input.sessionID);
       if (!remaining?.length || !client) return;
 
-      // If last return was a plain prompt, skip this text.complete
-      // We'll advance on the NEXT text.complete after LLM finishes its turn
-      if (pendingPlainPromptReturn.has(input.sessionID)) {
-        pendingPlainPromptReturn.delete(input.sessionID);
-        log(`text.complete: plain prompt return done, will advance on next text.complete`);
-        return;  // Don't advance yet - wait for next text.complete
-      }
-
       // If a command/inline subtask is running, don't advance - tool.after will handle it
       if (lastReturnWasCommand.has(input.sessionID)) {
         log(`text.complete: waiting for command/inline subtask to complete`);
         return;
       }
+
+
 
       const next = remaining.shift()!;
       if (!remaining.length) returnState.delete(input.sessionID);
