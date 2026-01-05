@@ -1,10 +1,14 @@
-import { getClient, registerPendingParentForPrompt, setReturnState } from "../core/state";
+import {
+  getClient,
+  registerPendingParentForPrompt,
+  setReturnState,
+} from "../core/state";
 import { log } from "../utils/logger";
 import { getAutoWorkflowPrompt } from "../utils/prompts";
 
 /**
  * Execute a subtask2: auto workflow
- * 
+ *
  * 1. Spawns subtask with auto prompt + user arguments
  * 2. Sets up return to parse and execute the generated workflow
  */
@@ -20,7 +24,9 @@ export async function executeAutoWorkflow(
   const autoPrompt = await getAutoWorkflowPrompt();
   const prompt = autoPrompt + userArguments;
 
-  log(`executeAutoWorkflow: starting auto workflow with args="${userArguments.substring(0, 50)}..."`);
+  log(
+    `executeAutoWorkflow: starting auto workflow with args="${userArguments.substring(0, 50)}..."`
+  );
 
   // Register parent session for later reference
   registerPendingParentForPrompt(prompt, sessionID);

@@ -308,7 +308,7 @@ Configure in `~/.config/opencode/subtask2.jsonc`:
   "replace_generic": true, // defaults to true
 
   // Custom fallback (optional - has built-in default)
-  "generic_return": "custom return prompt"
+  "generic_return": "custom return prompt",
 }
 ```
 

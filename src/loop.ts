@@ -16,7 +16,10 @@ const activeLoops = new Map<string, LoopState>();
 const pendingLoopEvaluation = new Map<string, LoopState>();
 
 // Re-export from prompts.ts
-export { loopEvaluationPrompt as createEvaluationPrompt, loopYieldPrompt as createYieldPrompt } from "./utils/prompts";
+export {
+  loopEvaluationPrompt as createEvaluationPrompt,
+  loopYieldPrompt as createYieldPrompt,
+} from "./utils/prompts";
 
 /**
  * Parse the main LLM's response for loop decision

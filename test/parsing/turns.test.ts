@@ -16,7 +16,11 @@ describe("extractTurnReferences", () => {
   it("extracts $TURN[:n] - specific index", () => {
     const refs = extractTurnReferences("Look at $TURN[:3]");
     expect(refs).toHaveLength(1);
-    expect(refs[0]).toEqual({ type: "specific", match: "$TURN[:3]", indices: [3] });
+    expect(refs[0]).toEqual({
+      type: "specific",
+      match: "$TURN[:3]",
+      indices: [3],
+    });
   });
 
   it("extracts $TURN[:2:5:8] - multiple specific indices", () => {

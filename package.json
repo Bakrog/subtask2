@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@opencode-ai/sdk": "latest",
+    "prettier": "^3.7.4",
     "yaml": "^2.8.2"
   },
   "devDependencies": {

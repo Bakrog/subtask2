@@ -11,7 +11,8 @@ export interface AutoWorkflowResult {
  * Extract the workflow command from <subtask2 auto="true">...</subtask2> tags
  */
 export function parseAutoWorkflowOutput(text: string): AutoWorkflowResult {
-  const regex = /<subtask2\s+auto\s*=\s*["']?true["']?\s*>([\s\S]*?)<\/subtask2>/i;
+  const regex =
+    /<subtask2\s+auto\s*=\s*["']?true["']?\s*>([\s\S]*?)<\/subtask2>/i;
   const match = text.match(regex);
 
   if (!match || !match[1]) {

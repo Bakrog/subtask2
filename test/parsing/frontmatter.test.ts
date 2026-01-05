@@ -1,5 +1,8 @@
 import { describe, it, expect } from "bun:test";
-import { parseFrontmatter, getTemplateBody } from "../../src/parsing/frontmatter";
+import {
+  parseFrontmatter,
+  getTemplateBody,
+} from "../../src/parsing/frontmatter";
 
 describe("parseFrontmatter", () => {
   it("parses valid YAML frontmatter", () => {

@@ -21,7 +21,9 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
   }
 
   // Check for inline subtask syntax: /subtask{...} prompt (case-insensitive)
-  const inlineMatch = trimmed.match(/^\/[sS][uU][bB][tT][aA][sS][kK]\{([^}]+)\}\s+(.+)$/s);
+  const inlineMatch = trimmed.match(
+    /^\/[sS][uU][bB][tT][aA][sS][kK]\{([^}]+)\}\s+(.+)$/s
+  );
   if (inlineMatch) {
     const [, overridesStr, prompt] = inlineMatch;
     const overrides = parseOverridesString(overridesStr);

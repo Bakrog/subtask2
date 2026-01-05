@@ -53,10 +53,10 @@ export async function executeInlineSubtask(
   }
 
   const client = getClient();
-  
+
   // Register parent session for $TURN resolution (race-safe: keyed by prompt)
   registerPendingParentForPrompt(prompt, sessionID);
-  
+
   // Execute as subtask via promptAsync
   try {
     log(`executeInlineSubtask: calling promptAsync for session ${sessionID}`);
@@ -74,7 +74,9 @@ export async function executeInlineSubtask(
         ],
       },
     });
-    log(`executeInlineSubtask: promptAsync returned: ${JSON.stringify(result)}`);
+    log(
+      `executeInlineSubtask: promptAsync returned: ${JSON.stringify(result)}`
+    );
   } catch (err) {
     log(`executeInlineSubtask ERROR: ${err}`);
   }

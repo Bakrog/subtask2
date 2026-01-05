@@ -141,10 +141,7 @@ export async function commandExecuteBefore(
       log(`Subtask prompt (first 200): ${part.prompt.substring(0, 200)}`);
       if (hasTurnReferences(part.prompt)) {
         log(`Found $TURN in subtask prompt, resolving...`);
-        part.prompt = await resolveTurnReferences(
-          part.prompt,
-          input.sessionID
-        );
+        part.prompt = await resolveTurnReferences(part.prompt, input.sessionID);
         log(
           `Resolved subtask prompt (first 200): ${part.prompt.substring(
             0,
@@ -158,9 +155,7 @@ export async function commandExecuteBefore(
       if (hasTurnReferences(part.text)) {
         log(`Found $TURN in text part, resolving...`);
         part.text = await resolveTurnReferences(part.text, input.sessionID);
-        log(
-          `Resolved text part (first 200): ${part.text.substring(0, 200)}`
-        );
+        log(`Resolved text part (first 200): ${part.text.substring(0, 200)}`);
       }
     }
   }
@@ -178,9 +173,7 @@ export async function commandExecuteBefore(
   }
 
   // Track non-subtask commands with return for later injection
-  const hasSubtaskPart = output.parts.some(
-    (p: any) => p.type === "subtask"
-  );
+  const hasSubtaskPart = output.parts.some((p: any) => p.type === "subtask");
   if (!hasSubtaskPart && config?.return?.length) {
     setPendingNonSubtaskReturns(input.sessionID, [...config.return]);
   }
@@ -189,7 +182,9 @@ export async function commandExecuteBefore(
   for (const part of output.parts) {
     if (part.type === "subtask" && part.prompt) {
       registerPendingParentForPrompt(part.prompt, input.sessionID);
-      log(`cmd.before: registered parent for prompt (${part.prompt.length} chars)`);
+      log(
+        `cmd.before: registered parent for prompt (${part.prompt.length} chars)`
+      );
     }
   }
 

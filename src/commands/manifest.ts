@@ -1,7 +1,11 @@
 /// <reference types="bun-types" />
 
 import type { CommandConfig } from "../types";
-import { parseFrontmatter, getTemplateBody, parseParallelConfig } from "../parsing";
+import {
+  parseFrontmatter,
+  getTemplateBody,
+  parseParallelConfig,
+} from "../parsing";
 
 /**
  * Commands: Manifest building

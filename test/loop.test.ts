@@ -14,9 +14,9 @@ import {
 
 describe("parseLoopDecision", () => {
   it("returns 'break' for <subtask2 loop=break/>", () => {
-    expect(parseLoopDecision("Some text <subtask2 loop=break/> more text")).toBe(
-      "break"
-    );
+    expect(
+      parseLoopDecision("Some text <subtask2 loop=break/> more text")
+    ).toBe("break");
   });
 
   it('returns "break" for <subtask2 loop="break"/>', () => {

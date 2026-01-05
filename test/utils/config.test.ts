@@ -66,7 +66,10 @@ describe("loadConfig", () => {
   });
 
   it("returns valid config when file exists with valid content", async () => {
-    await writeFile(TEST_CONFIG_PATH, JSON.stringify({ replace_generic: true }));
+    await writeFile(
+      TEST_CONFIG_PATH,
+      JSON.stringify({ replace_generic: true })
+    );
     const config = await loadConfig();
     expect(config.replace_generic).toBe(true);
   });
@@ -100,7 +103,10 @@ describe("loadConfig", () => {
   });
 
   it("returns default config when replace_generic is not boolean", async () => {
-    await writeFile(TEST_CONFIG_PATH, JSON.stringify({ replace_generic: "yes" }));
+    await writeFile(
+      TEST_CONFIG_PATH,
+      JSON.stringify({ replace_generic: "yes" })
+    );
     const config = await loadConfig();
     expect(config.replace_generic).toBe(false);
   });

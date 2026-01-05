@@ -1,5 +1,8 @@
 import { describe, it, expect } from "bun:test";
-import { parseCommandWithOverrides, parseInlineSubtask } from "../../src/parsing/commands";
+import {
+  parseCommandWithOverrides,
+  parseInlineSubtask,
+} from "../../src/parsing/commands";
 
 describe("parseCommandWithOverrides", () => {
   it("parses simple command without overrides", () => {
@@ -25,7 +28,9 @@ describe("parseCommandWithOverrides", () => {
   });
 
   it("parses command with agent override", () => {
-    const result = parseCommandWithOverrides("/research{agent:explore} find patterns");
+    const result = parseCommandWithOverrides(
+      "/research{agent:explore} find patterns"
+    );
     expect(result.command).toBe("research");
     expect(result.overrides.agent).toBe("explore");
   });
@@ -147,7 +152,9 @@ describe("parseInlineSubtask", () => {
   });
 
   it("parses with return chain", () => {
-    const result = parseInlineSubtask("{return:validate || test || deploy} build");
+    const result = parseInlineSubtask(
+      "{return:validate || test || deploy} build"
+    );
     expect(result?.overrides.return).toEqual(["validate", "test", "deploy"]);
   });
 
@@ -179,7 +186,9 @@ describe("parseInlineSubtask", () => {
   });
 
   it("handles whitespace in prompt", () => {
-    const result = parseInlineSubtask("{agent:build}   multiword prompt here  ");
+    const result = parseInlineSubtask(
+      "{agent:build}   multiword prompt here  "
+    );
     expect(result?.prompt).toBe("multiword prompt here");
   });
 });

@@ -239,7 +239,10 @@ describe("state management", () => {
 
     it("sets and gets pending non-subtask returns", () => {
       setPendingNonSubtaskReturns(sessionId, ["step1", "step2"]);
-      expect(getPendingNonSubtaskReturns(sessionId)).toEqual(["step1", "step2"]);
+      expect(getPendingNonSubtaskReturns(sessionId)).toEqual([
+        "step1",
+        "step2",
+      ]);
     });
 
     it("deletes pending non-subtask returns", () => {

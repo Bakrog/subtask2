@@ -108,7 +108,7 @@ describe("parseOverridesString", () => {
 });
 
 describe("parseAutoWorkflowOutput", () => {
-  it("parses <subtask2 auto=\"true\"> tag with /subtask command", () => {
+  it('parses <subtask2 auto="true"> tag with /subtask command', () => {
     const text = `Some reasoning here...
 <subtask2 auto="true">
 /subtask{model:openai/gpt-4o && return:validate || test} implement the feature

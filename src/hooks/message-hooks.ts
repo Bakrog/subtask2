@@ -39,7 +39,10 @@ export async function chatMessagesTransform(input: any, output: any) {
 
       // Match /subtask{...} or /subtask (space) - case insensitive
       const textLower = text.toLowerCase();
-      if (textLower.startsWith("/subtask{") || textLower.startsWith("/subtask ")) {
+      if (
+        textLower.startsWith("/subtask{") ||
+        textLower.startsWith("/subtask ")
+      ) {
         log(`/subtask detected in message: "${text.substring(0, 60)}..."`);
 
         // Mark as processed BEFORE spawning

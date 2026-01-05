@@ -26,13 +26,15 @@ import {
  */
 export async function textComplete(input: any) {
   const client = getClient();
-  log(`text.complete: sessionID=${input.sessionID}, hasReturnState=${getReturnState(input.sessionID) !== undefined}`);
-  
+  log(
+    `text.complete: sessionID=${input.sessionID}, hasReturnState=${getReturnState(input.sessionID) !== undefined}`
+  );
+
   // Check for loop evaluation response (orchestrator-decides pattern)
   const evalState = getPendingEvaluation(input.sessionID);
   if (evalState) {
     let decision: "break" | "continue" = "continue";
-    
+
     // Only parse decision if this is a conditional loop (has until condition)
     if (evalState.config.until) {
       // Get the last assistant message to check for loop decision
@@ -60,18 +62,20 @@ export async function textComplete(input: any) {
         log(
           `retry: continuing iteration ${state.iteration}/${state.config.max}`
         );
-        
+
         if (state.commandName === "_inline_subtask_") {
           // Re-execute inline subtask directly via promptAsync
-          log(`retry: re-executing inline subtask with prompt "${state.arguments?.substring(0, 50)}..."`);
-          
+          log(
+            `retry: re-executing inline subtask with prompt "${state.arguments?.substring(0, 50)}..."`
+          );
+
           // Build model from override if present
           let model: { providerID: string; modelID: string } | undefined;
           if (state.model?.includes("/")) {
             const [providerID, ...rest] = state.model.split("/");
             model = { providerID, modelID: rest.join("/") };
           }
-          
+
           try {
             await client.session.promptAsync({
               path: { id: input.sessionID },
@@ -111,8 +115,7 @@ export async function textComplete(input: any) {
   const pendingReturn = getPendingNonSubtaskReturns(input.sessionID);
   if (pendingReturn?.length && client) {
     const next = pendingReturn.shift()!;
-    if (!pendingReturn.length)
-      deletePendingNonSubtaskReturns(input.sessionID);
+    if (!pendingReturn.length) deletePendingNonSubtaskReturns(input.sessionID);
     executeReturn(next, input.sessionID).catch(console.error);
     return;
   }
@@ -130,7 +133,9 @@ export async function textComplete(input: any) {
   if (hasReturnStack(input.sessionID)) {
     const next = shiftReturnStack(input.sessionID);
     if (next) {
-      log(`text.complete: executing stacked return: "${next.substring(0, 40)}..."`);
+      log(
+        `text.complete: executing stacked return: "${next.substring(0, 40)}..."`
+      );
       executeReturn(next, input.sessionID).catch(console.error);
       return;
     }

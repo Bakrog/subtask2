@@ -14,7 +14,11 @@ import {
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
-import { parseCommandWithOverrides, hasTurnReferences, parseAutoWorkflowOutput } from "../parsing";
+import {
+  parseCommandWithOverrides,
+  hasTurnReferences,
+  parseAutoWorkflowOutput,
+} from "../parsing";
 import { resolveTurnReferences } from "./turns";
 import { startLoop } from "../loop";
 
@@ -37,17 +41,22 @@ export async function executeReturn(
       path: { id: sessionID },
     });
     const lastMsg = messages.data?.[messages.data.length - 1];
-    const lastText = lastMsg?.parts?.find((p: any) => p.type === "text")?.text || "";
+    const lastText =
+      lastMsg?.parts?.find((p: any) => p.type === "text")?.text || "";
 
     // Parse the auto workflow output
     const result = parseAutoWorkflowOutput(lastText);
 
     if (!result.found || !result.command) {
-      log(`executeReturn: auto workflow parse failed - no valid <subtask2 auto> tag found`);
+      log(
+        `executeReturn: auto workflow parse failed - no valid <subtask2 auto> tag found`
+      );
       return;
     }
 
-    log(`executeReturn: parsed auto workflow: "${result.command.substring(0, 80)}..."`);
+    log(
+      `executeReturn: parsed auto workflow: "${result.command.substring(0, 80)}..."`
+    );
 
     // Execute the parsed command as if user invoked it
     // This recurses into executeReturn with the actual /subtask{...} command
@@ -86,7 +95,14 @@ export async function executeReturn(
       // Start loop if configured
       const loopConfig = parsed.overrides.loop || loopOverride;
       if (loopConfig) {
-        startLoop(sessionID, loopConfig, "_inline_subtask_", prompt, parsed.overrides.model, parsed.overrides.agent);
+        startLoop(
+          sessionID,
+          loopConfig,
+          "_inline_subtask_",
+          prompt,
+          parsed.overrides.model,
+          parsed.overrides.agent
+        );
         log(
           `executeReturn: started inline subtask loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`
         );
@@ -95,11 +111,18 @@ export async function executeReturn(
       // Handle inline subtask returns - push onto stack (if not also looping)
       // Loop + return conflict: if looping, returns are ignored (loop needs the return slot for evaluation)
       if (parsed.overrides.loop && parsed.overrides.return?.length) {
-        log(`executeReturn: WARNING - inline subtask has both loop and return, returns will be ignored`);
-      } else if (parsed.overrides.return && parsed.overrides.return.length > 0) {
+        log(
+          `executeReturn: WARNING - inline subtask has both loop and return, returns will be ignored`
+        );
+      } else if (
+        parsed.overrides.return &&
+        parsed.overrides.return.length > 0
+      ) {
         // No loop, safe to push returns onto stack
         pushReturnStack(sessionID, [...parsed.overrides.return]);
-        log(`executeReturn: pushed ${parsed.overrides.return.length} inline returns onto stack`);
+        log(
+          `executeReturn: pushed ${parsed.overrides.return.length} inline returns onto stack`
+        );
       }
 
       log(
@@ -144,9 +167,8 @@ export async function executeReturn(
     const configs = getConfigs();
     const allKeys = Object.keys(configs);
     const pathKey =
-      allKeys.find(
-        k => k.includes("/") && k.endsWith("/" + parsed.command)
-      ) || parsed.command;
+      allKeys.find(k => k.includes("/") && k.endsWith("/" + parsed.command)) ||
+      parsed.command;
 
     // Store model override if present (will be consumed by command.execute.before)
     if (parsed.overrides.model) {

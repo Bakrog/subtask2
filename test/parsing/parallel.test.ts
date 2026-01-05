@@ -47,7 +47,10 @@ describe("parseLoopConfig", () => {
   });
 
   it("handles string until correctly", () => {
-    const result = parseLoopConfig({ max: 5, until: "all features implemented" });
+    const result = parseLoopConfig({
+      max: 5,
+      until: "all features implemented",
+    });
     expect(result?.until).toBe("all features implemented");
   });
 });

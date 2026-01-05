@@ -199,7 +199,10 @@ export function getPendingReturn(sessionID: string): string | undefined {
   return pendingReturns.get(sessionID);
 }
 
-export function setPendingReturn(sessionID: string, returnPrompt: string): void {
+export function setPendingReturn(
+  sessionID: string,
+  returnPrompt: string
+): void {
   pendingReturns.set(sessionID, returnPrompt);
 }
 
@@ -219,11 +222,16 @@ export function getAllPendingReturns(): IterableIterator<[string, string]> {
 // Pending Non-Subtask Returns
 // ============================================================================
 
-export function getPendingNonSubtaskReturns(sessionID: string): string[] | undefined {
+export function getPendingNonSubtaskReturns(
+  sessionID: string
+): string[] | undefined {
   return pendingNonSubtaskReturns.get(sessionID);
 }
 
-export function setPendingNonSubtaskReturns(sessionID: string, returns: string[]): void {
+export function setPendingNonSubtaskReturns(
+  sessionID: string,
+  returns: string[]
+): void {
   pendingNonSubtaskReturns.set(sessionID, returns);
 }
 
@@ -315,7 +323,10 @@ export function getSubtaskParentSession(sessionID: string): string | undefined {
   return subtaskParentSession.get(sessionID);
 }
 
-export function setSubtaskParentSession(sessionID: string, parentID: string): void {
+export function setSubtaskParentSession(
+  sessionID: string,
+  parentID: string
+): void {
   subtaskParentSession.set(sessionID, parentID);
 }
 
@@ -331,7 +342,10 @@ export function getPendingModelOverride(sessionID: string): string | undefined {
   return pendingModelOverride.get(sessionID);
 }
 
-export function setPendingModelOverride(sessionID: string, model: string): void {
+export function setPendingModelOverride(
+  sessionID: string,
+  model: string
+): void {
   pendingModelOverride.set(sessionID, model);
 }
 
@@ -343,11 +357,16 @@ export function deletePendingModelOverride(sessionID: string): void {
 // Last Return Was Command
 // ============================================================================
 
-export function getLastReturnWasCommand(sessionID: string): boolean | undefined {
+export function getLastReturnWasCommand(
+  sessionID: string
+): boolean | undefined {
   return lastReturnWasCommand.get(sessionID);
 }
 
-export function setLastReturnWasCommand(sessionID: string, value: boolean): void {
+export function setLastReturnWasCommand(
+  sessionID: string,
+  value: boolean
+): void {
   lastReturnWasCommand.set(sessionID, value);
 }
 
@@ -367,7 +386,10 @@ export function deleteLastReturnWasCommand(sessionID: string): void {
  * Register a parent session for a subtask prompt.
  * Called in command.execute.before after all prompt modifications.
  */
-export function registerPendingParentForPrompt(prompt: string, parentSessionID: string): void {
+export function registerPendingParentForPrompt(
+  prompt: string,
+  parentSessionID: string
+): void {
   pendingParentByPrompt.set(prompt, parentSessionID);
 }
 

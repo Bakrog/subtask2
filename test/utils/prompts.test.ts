@@ -116,7 +116,9 @@ describe("getAutoWorkflowPrompt", () => {
     // README placeholder should be replaced
     expect(prompt).not.toContain("{{SUBTASK2_README}}");
     // Should contain some README content (or fallback message)
-    expect(prompt.length).toBeGreaterThan(AUTO_WORKFLOW_PROMPT_TEMPLATE.length - 50);
+    expect(prompt.length).toBeGreaterThan(
+      AUTO_WORKFLOW_PROMPT_TEMPLATE.length - 50
+    );
   });
 
   it("includes output format instructions", async () => {

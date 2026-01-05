@@ -36,32 +36,33 @@ import {
  */
 export async function toolExecuteBefore(input: any, output: any) {
   if (input.tool !== "task") return;
-  
+
   // Mark that we have an active subtask (for generic return replacement)
   setHasActiveSubtask(true);
-  
+
   const cmd = output.args?.command;
   const prompt = output.args?.prompt;
   const description = output.args?.description;
   const configs = getConfigs();
   let mainCmd = getSessionMainCommand(input.sessionID);
-  
+
   // Look up parent session by prompt content (race-safe approach)
-  const pendingParentSession = prompt ? consumePendingParentForPrompt(prompt) : null;
+  const pendingParentSession = prompt
+    ? consumePendingParentForPrompt(prompt)
+    : null;
 
   // Track parent session for inline subtasks (so tool.execute.after can find the loop state)
   if (pendingParentSession && pendingParentSession !== input.sessionID) {
     setSubtaskParentSession(input.sessionID, pendingParentSession);
-    log(`tool.before: mapped subtask ${input.sessionID} -> parent ${pendingParentSession}`);
+    log(
+      `tool.before: mapped subtask ${input.sessionID} -> parent ${pendingParentSession}`
+    );
   }
 
   log(
     `tool.before: callID=${
       input.callID
-    }, cmd=${cmd}, desc="${description?.substring(
-      0,
-      30
-    )}", mainCmd=${mainCmd}`
+    }, cmd=${cmd}, desc="${description?.substring(0, 30)}", mainCmd=${mainCmd}`
   );
 
   // If mainCmd is not set (command.execute.before didn't fire - no PR),
@@ -77,7 +78,7 @@ export async function toolExecuteBefore(input: any, output: any) {
       if (pipeMatch) {
         const pipedPart = pipeMatch[1];
         const pipedArgs = pipedPart
-          .split("||") 
+          .split("||")
           .map((s: string) => s.trim())
           .filter(Boolean);
         if (pipedArgs.length) {
@@ -140,9 +141,7 @@ export async function toolExecuteAfter(input: any, output: any) {
   if (input.tool !== "task") return;
   const cmd = getCallState(input.callID);
 
-  log(
-    `tool.after: callID=${input.callID}, cmd=${cmd}, wasTracked=${!!cmd}`
-  );
+  log(`tool.after: callID=${input.callID}, cmd=${cmd}, wasTracked=${!!cmd}`);
 
   // Check for active retry loop - inline subtasks have cmd=undefined
   // For inline subtasks, the loop state is on the PARENT session, not the subtask session
@@ -150,12 +149,15 @@ export async function toolExecuteAfter(input: any, output: any) {
   const loopSession = parentSession || input.sessionID;
   const retryLoop = getLoopState(loopSession);
   const isInlineLoopIteration = retryLoop?.commandName === "_inline_subtask_";
-  
-  log(`tool.after: parentSession=${parentSession}, loopSession=${loopSession}, hasLoop=${!!retryLoop}, isInlineLoop=${isInlineLoopIteration}`);
-  
+
+  log(
+    `tool.after: parentSession=${parentSession}, loopSession=${loopSession}, hasLoop=${!!retryLoop}, isInlineLoop=${isInlineLoopIteration}`
+  );
+
   // Check if this is a frontmatter loop iteration (cmd may be undefined for subtask:true commands)
-  const isFrontmatterLoop = retryLoop && retryLoop.commandName !== "_inline_subtask_";
-  
+  const isFrontmatterLoop =
+    retryLoop && retryLoop.commandName !== "_inline_subtask_";
+
   if (!cmd && !isInlineLoopIteration && !isFrontmatterLoop) {
     // Already processed or not our command (and not a loop iteration)
     return;
@@ -168,7 +170,9 @@ export async function toolExecuteAfter(input: any, output: any) {
     deleteSubtaskParentSession(input.sessionID);
   }
 
-  const mainCmd = getSessionMainCommand(loopSession) || getSessionMainCommand(input.sessionID);
+  const mainCmd =
+    getSessionMainCommand(loopSession) ||
+    getSessionMainCommand(input.sessionID);
   const configs = getConfigs();
   const cmdConfig = cmd ? getConfig(configs, cmd) : undefined;
 
@@ -180,17 +184,17 @@ export async function toolExecuteAfter(input: any, output: any) {
 
   // For inline subtasks, cmd is undefined but commandName is "_inline_subtask_"
   // For frontmatter loops on subtask:true commands, cmd may be undefined but mainCmd matches
-  const isLoopIteration = retryLoop && (
-    cmd === retryLoop.commandName || 
-    mainCmd === retryLoop.commandName || 
-    isInlineLoopIteration
-  );
-  
+  const isLoopIteration =
+    retryLoop &&
+    (cmd === retryLoop.commandName ||
+      mainCmd === retryLoop.commandName ||
+      isInlineLoopIteration);
+
   // Clear command flag when inline subtask completes
   if (retryLoop?.commandName === "_inline_subtask_") {
     deleteLastReturnWasCommand(loopSession);
   }
-  
+
   if (isLoopIteration) {
     log(
       `retry: completed iteration ${retryLoop.iteration}/${retryLoop.config.max}`
@@ -198,9 +202,7 @@ export async function toolExecuteAfter(input: any, output: any) {
 
     // Check if max iterations reached
     if (isMaxIterationsReached(loopSession)) {
-      log(
-        `retry: MAX ITERATIONS reached (${retryLoop.config.max}), stopping`
-      );
+      log(`retry: MAX ITERATIONS reached (${retryLoop.config.max}), stopping`);
       clearLoop(loopSession);
       clearPendingEvaluation(loopSession);
       // Continue with normal return flow
@@ -216,13 +218,11 @@ export async function toolExecuteAfter(input: any, output: any) {
 
   // For inline loops, set pendingReturn on the parent session for evaluation
   const returnSession = isInlineLoopIteration ? loopSession : input.sessionID;
-  
+
   if (cmd && cmd === mainCmd && cmdConfig?.return?.length) {
     // Only set pendingReturn if we haven't already (dedup check)
     if (!hasPendingReturn(returnSession)) {
-      log(
-        `Setting pendingReturn: ${cmdConfig.return[0].substring(0, 50)}...`
-      );
+      log(`Setting pendingReturn: ${cmdConfig.return[0].substring(0, 50)}...`);
       setPendingReturn(returnSession, cmdConfig.return[0]);
     } else {
       log(`Skipping duplicate main command - pendingReturn already set`);

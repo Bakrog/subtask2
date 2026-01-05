@@ -42,10 +42,16 @@ export function parseOverridesString(overridesStr: string): CommandOverrides {
         }
       } else if (key === "return") {
         // return:first || second || third - split on || for multiple returns
-        overrides.return = value.split("||").map(s => s.trim()).filter(s => s.length > 0);
+        overrides.return = value
+          .split("||")
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
       } else if (key === "parallel") {
         // parallel:/cmd1 args || /cmd2 args - split on || for multiple parallels
-        overrides.parallel = value.split("||").map(s => s.trim()).filter(s => s.length > 0);
+        overrides.parallel = value
+          .split("||")
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
       }
     }
   }

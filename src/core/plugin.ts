@@ -17,7 +17,7 @@ export const createPlugin: Plugin = async ctx => {
   clearLog();
   const configs = await buildManifest();
   const pluginConfig = await loadConfig();
-  
+
   setConfigs(configs);
   setPluginConfig(pluginConfig);
   setClient(ctx.client);
