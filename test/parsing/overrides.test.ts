@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { parseOverridesString } from "./overrides";
-import { parseAutoWorkflowOutput } from "./auto";
+import { parseOverridesString } from "../../src/parsing/overrides";
+import { parseAutoWorkflowOutput } from "../../src/parsing/auto";
 
 describe("parseOverridesString", () => {
   it("parses model && agent correctly", () => {
@@ -43,6 +43,67 @@ describe("parseOverridesString", () => {
     const result = parseOverridesString("model:x  &&  agent:y");
     expect(result.model).toBe("x");
     expect(result.agent).toBe("y");
+  });
+
+  it("returns empty object for empty string", () => {
+    const result = parseOverridesString("");
+    expect(result).toEqual({});
+  });
+
+  it("handles only until without loop", () => {
+    const result = parseOverridesString("until:tests pass");
+    expect(result.loop).toEqual({ max: 10, until: "tests pass" });
+  });
+
+  it("handles parallel with single command", () => {
+    const result = parseOverridesString("parallel:/cmd1");
+    expect(result.parallel).toEqual(["/cmd1"]);
+  });
+
+  it("filters empty values in return array", () => {
+    const result = parseOverridesString("return:first ||  || third");
+    expect(result.return).toEqual(["first", "third"]);
+  });
+
+  it("filters empty values in parallel array", () => {
+    const result = parseOverridesString("parallel:/cmd1 ||  || /cmd3");
+    expect(result.parallel).toEqual(["/cmd1", "/cmd3"]);
+  });
+
+  it("ignores invalid loop value", () => {
+    const result = parseOverridesString("loop:abc");
+    expect(result.loop).toBeUndefined();
+  });
+
+  it("ignores zero loop value", () => {
+    const result = parseOverridesString("loop:0");
+    expect(result.loop).toBeUndefined();
+  });
+
+  it("ignores negative loop value", () => {
+    const result = parseOverridesString("loop:-5");
+    expect(result.loop).toBeUndefined();
+  });
+
+  it("handles model with complex provider/model path", () => {
+    const result = parseOverridesString("model:github-copilot/claude-opus-4.5");
+    expect(result.model).toBe("github-copilot/claude-opus-4.5");
+  });
+
+  it("handles agent with hyphen", () => {
+    const result = parseOverridesString("agent:my-agent");
+    expect(result.agent).toBe("my-agent");
+  });
+
+  it("handles pairs without colon gracefully", () => {
+    const result = parseOverridesString("model:x && invalid && agent:y");
+    expect(result.model).toBe("x");
+    expect(result.agent).toBe("y");
+  });
+
+  it("handles multiple colons in value", () => {
+    const result = parseOverridesString("until:condition: with: colons");
+    expect(result.loop?.until).toBe("condition: with: colons");
   });
 });
 
