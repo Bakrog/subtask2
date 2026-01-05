@@ -6,7 +6,7 @@ import {
   setPendingNonSubtaskReturns,
   getPendingModelOverride,
   deletePendingModelOverride,
-  setPendingParentSession,
+  registerPendingParentForPrompt,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
@@ -72,10 +72,8 @@ export async function commandExecuteBefore(
     );
   }
 
-  // Set pendingParentSession so tool-hooks can map the subtask session 
-  // back to this parent session (for loop state lookup and $TURN resolution)
-  setPendingParentSession(input.sessionID);
-  log(`cmd.before: set pendingParentSession=${input.sessionID}`);
+  // Note: Parent session registration for subtasks happens at the end of this function
+  // after all prompt modifications, using registerPendingParentForPrompt()
 
   // Apply model override to subtask parts
   if (modelOverride) {
@@ -161,6 +159,14 @@ export async function commandExecuteBefore(
   );
   if (!hasSubtaskPart && config?.return?.length) {
     setPendingNonSubtaskReturns(input.sessionID, [...config.return]);
+  }
+
+  // Register parent session for each subtask prompt (race-safe: keyed by prompt content)
+  for (const part of output.parts) {
+    if (part.type === "subtask" && part.prompt) {
+      registerPendingParentForPrompt(part.prompt, input.sessionID);
+      log(`cmd.before: registered parent for prompt (${part.prompt.length} chars)`);
+    }
   }
 
   if (!config?.parallel?.length) return;

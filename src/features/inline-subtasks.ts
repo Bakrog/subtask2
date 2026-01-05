@@ -1,4 +1,4 @@
-import { getClient, setPendingParentSession } from "../core/state";
+import { getClient, registerPendingParentForPrompt } from "../core/state";
 import { log } from "../utils/logger";
 import { hasTurnReferences } from "../parsing";
 import { resolveTurnReferences } from "./turns";
@@ -53,8 +53,8 @@ export async function executeInlineSubtask(
 
   const client = getClient();
   
-  // Set parent session for $TURN resolution in the subtask
-  setPendingParentSession(sessionID);
+  // Register parent session for $TURN resolution (race-safe: keyed by prompt)
+  registerPendingParentForPrompt(prompt, sessionID);
   
   // Execute as subtask via promptAsync
   try {

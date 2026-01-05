@@ -30,8 +30,8 @@ const subtaskParentSession = new Map<string, string>();
 const pendingModelOverride = new Map<string, string>();
 const lastReturnWasCommand = new Map<string, boolean>();
 
-// Pending parent session for $TURN resolution (simple variable)
-let pendingParentSession: string | null = null;
+// Pending parent sessions keyed by prompt content (for race-safe session mapping)
+const pendingParentByPrompt = new Map<string, string>();
 let hasActiveSubtask = false;
 
 // Constants
@@ -275,15 +275,27 @@ export function deleteLastReturnWasCommand(sessionID: string): void {
 }
 
 // ============================================================================
-// Pending Parent Session
+// Pending Parent Session (keyed by prompt for race safety)
 // ============================================================================
 
-export function getPendingParentSession(): string | null {
-  return pendingParentSession;
+/**
+ * Register a parent session for a subtask prompt.
+ * Called in command.execute.before after all prompt modifications.
+ */
+export function registerPendingParentForPrompt(prompt: string, parentSessionID: string): void {
+  pendingParentByPrompt.set(prompt, parentSessionID);
 }
 
-export function setPendingParentSession(sessionID: string | null): void {
-  pendingParentSession = sessionID;
+/**
+ * Look up and consume the parent session for a subtask prompt.
+ * Called in tool.execute.before to map subtask -> parent.
+ */
+export function consumePendingParentForPrompt(prompt: string): string | null {
+  const parentSession = pendingParentByPrompt.get(prompt);
+  if (parentSession) {
+    pendingParentByPrompt.delete(prompt);
+  }
+  return parentSession ?? null;
 }
 
 // ============================================================================

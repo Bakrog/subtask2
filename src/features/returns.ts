@@ -4,7 +4,7 @@ import {
   getConfigs,
   hasExecutedReturn,
   addExecutedReturn,
-  setPendingParentSession,
+  registerPendingParentForPrompt,
   setSessionMainCommand,
   setPendingModelOverride,
   getReturnArgsState,
@@ -70,7 +70,8 @@ export async function executeReturn(
           50
         )}..." (agent=${parsed.overrides.agent || "build"})`
       );
-      setPendingParentSession(sessionID);
+      // Register parent session for $TURN resolution (race-safe: keyed by prompt)
+      registerPendingParentForPrompt(prompt, sessionID);
 
       try {
         log(`executeReturn: calling promptAsync for inline subtask...`);
@@ -138,8 +139,7 @@ export async function executeReturn(
       `executeReturn: /${parsed.command} -> ${pathKey} args="${args}" (parent=${sessionID})`
     );
     setSessionMainCommand(sessionID, pathKey);
-    // Set parent session for $TURN resolution - will be consumed by tool.execute.before
-    setPendingParentSession(sessionID);
+    // Note: parent session registration happens in command-hooks.ts after prompt modifications
 
     try {
       await client.session.command({

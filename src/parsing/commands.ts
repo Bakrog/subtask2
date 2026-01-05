@@ -81,34 +81,8 @@ export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
 
   if (!prompt) return null;
 
-  // Parse overrides
-  const overrides: CommandOverrides = {};
-  const pairs = overrideStr.split(",");
-
-  for (const pair of pairs) {
-    const colonIdx = pair.indexOf(":");
-    if (colonIdx === -1) continue;
-
-    const key = pair.substring(0, colonIdx).trim().toLowerCase();
-    const value = pair.substring(colonIdx + 1).trim();
-
-    if (key === "model") {
-      overrides.model = value;
-    } else if (key === "agent") {
-      overrides.agent = value;
-    } else if (key === "loop") {
-      const max = parseInt(value, 10);
-      if (!isNaN(max) && max > 0) {
-        overrides.loop = { max, until: "" };
-      }
-    } else if (key === "until") {
-      if (!overrides.loop) {
-        overrides.loop = { max: 10, until: value };
-      } else {
-        overrides.loop.until = value;
-      }
-    }
-  }
+  // Reuse centralized override parsing logic
+  const overrides = parseOverridesString(overrideStr);
 
   return { prompt, overrides };
 }

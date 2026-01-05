@@ -11,8 +11,7 @@ import {
   deletePendingNonSubtaskReturns,
   setPendingReturn,
   hasPendingReturn,
-  getPendingParentSession,
-  setPendingParentSession,
+  consumePendingParentForPrompt,
   setSubtaskParentSession,
   deleteSubtaskParentSession,
   getSubtaskParentSession,
@@ -46,7 +45,9 @@ export async function toolExecuteBefore(input: any, output: any) {
   const description = output.args?.description;
   const configs = getConfigs();
   let mainCmd = getSessionMainCommand(input.sessionID);
-  const pendingParentSession = getPendingParentSession();
+  
+  // Look up parent session by prompt content (race-safe approach)
+  const pendingParentSession = prompt ? consumePendingParentForPrompt(prompt) : null;
 
   // Track parent session for inline subtasks (so tool.execute.after can find the loop state)
   if (pendingParentSession && pendingParentSession !== input.sessionID) {
@@ -114,8 +115,7 @@ export async function toolExecuteBefore(input: any, output: any) {
     log(
       `tool.execute.before: resolved prompt (${output.args.prompt.length} chars)`
     );
-    // Clear after use
-    setPendingParentSession(null);
+    // Note: consumePendingParentForPrompt already removed the entry
   }
 
   if (cmd && getConfig(configs, cmd)) {
