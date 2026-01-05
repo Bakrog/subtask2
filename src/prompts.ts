@@ -33,6 +33,8 @@ ${condition}
 
 You may read files, check git diff/status, run tests, or do whatever verification is needed.
 
+> DO NOT WRITE OR EDIT ANY FILES - YOU ARE ONLY TO EVALUATE AND REPORT
+
 After evaluation, respond with ONE of:
 - <subtask2 loop=break/> - loop condition satisfied, proceed to next step
 - <subtask2 loop=continue/> - more work needed, loop again
