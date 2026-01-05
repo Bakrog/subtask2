@@ -18,6 +18,7 @@ let client: any = null;
 // Session state maps
 const callState = new Map<string, string>();
 const returnState = new Map<string, string[]>();
+const returnStack = new Map<string, string[][]>(); // Stack of return chains for nested returns
 const pendingReturns = new Map<string, string>();
 const pendingNonSubtaskReturns = new Map<string, string[]>();
 const pipedArgsQueue = new Map<string, string[]>();
@@ -104,6 +105,90 @@ export function hasReturnState(sessionID: string): boolean {
 
 export function deleteReturnState(sessionID: string): void {
   returnState.delete(sessionID);
+}
+
+// ============================================================================
+// Return Stack (for nested returns)
+// ============================================================================
+
+/**
+ * Push a new return chain onto the stack.
+ * Used when an inline subtask has its own returns.
+ */
+export function pushReturnStack(sessionID: string, returns: string[]): void {
+  if (!returnStack.has(sessionID)) {
+    returnStack.set(sessionID, []);
+  }
+  returnStack.get(sessionID)!.push(returns);
+}
+
+/**
+ * Get the current (top) return chain from the stack.
+ * Returns undefined if stack is empty.
+ */
+export function peekReturnStack(sessionID: string): string[] | undefined {
+  const stack = returnStack.get(sessionID);
+  if (!stack || stack.length === 0) return undefined;
+  return stack[stack.length - 1];
+}
+
+/**
+ * Pop the current return chain from the stack (when it's exhausted).
+ */
+export function popReturnStack(sessionID: string): void {
+  const stack = returnStack.get(sessionID);
+  if (stack && stack.length > 0) {
+    stack.pop();
+    if (stack.length === 0) {
+      returnStack.delete(sessionID);
+    }
+  }
+}
+
+/**
+ * Check if there are any return chains on the stack.
+ */
+export function hasReturnStack(sessionID: string): boolean {
+  const stack = returnStack.get(sessionID);
+  return stack !== undefined && stack.length > 0;
+}
+
+/**
+ * Shift the next return item from the current chain.
+ * If chain becomes empty, pops it from the stack.
+ * Returns undefined if no returns left.
+ */
+export function shiftReturnStack(sessionID: string): string | undefined {
+  const stack = returnStack.get(sessionID);
+  if (!stack || stack.length === 0) return undefined;
+
+  const currentChain = stack[stack.length - 1];
+  if (!currentChain || currentChain.length === 0) {
+    stack.pop();
+    if (stack.length === 0) {
+      returnStack.delete(sessionID);
+    }
+    return undefined;
+  }
+
+  const next = currentChain.shift();
+
+  // If chain is now empty, pop it
+  if (currentChain.length === 0) {
+    stack.pop();
+    if (stack.length === 0) {
+      returnStack.delete(sessionID);
+    }
+  }
+
+  return next;
+}
+
+/**
+ * Clear all return stacks for a session.
+ */
+export function clearReturnStack(sessionID: string): void {
+  returnStack.delete(sessionID);
 }
 
 // ============================================================================

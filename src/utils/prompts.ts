@@ -53,3 +53,43 @@ A queued command iteration has completed (${iteration}/${max}).
 Please yield back now to allow the next iteration to run.
 </instructions>`;
 }
+
+/**
+ * Auto workflow generation prompt - teaches LLM to generate subtask2 inline syntax
+ */
+export const AUTO_WORKFLOW_PROMPT = `You are tasked with creating a subtask2 command workflow to fulfill the user's request.
+
+## Subtask2 Inline Syntax
+
+Create a workflow using this inline syntax:
+\`\`\`
+/subtask{param && param && ...} prompt text
+\`\`\`
+
+### Available Parameters (separated by &&):
+
+- \`model:provider/model-id\` - Override the model
+- \`agent:agent-name\` - Override the agent (build, plan, explore)
+- \`loop:N\` - Run exactly N times (unconditional)
+- \`loop:N && until:condition\` - Run up to N times until condition met
+- \`return:prompt1 || prompt2 || prompt3\` - Chain of prompts/commands to execute after
+- \`parallel:/cmd1 args || /cmd2 args\` - Run multiple subtasks concurrently
+
+### Examples:
+
+- Simple: \`/subtask{agent:build} implement the auth system\`
+- With returns: \`/subtask{return:validate the output || run the tests} build the feature\`
+- With loop: \`/subtask{loop:5 && until:all tests pass} fix the failing tests\`
+- Complex: \`/subtask{model:openai/gpt-4o && return:review || test || deploy} implement $FEATURE\`
+
+### Rules:
+
+1. Output your reasoning first
+2. Then output the workflow inside: <subtask2 auto="true">...</subtask2>
+3. The workflow must be a single /subtask{...} command with inline syntax
+4. Do NOT create files - the workflow executes in memory
+5. Use returns to chain multiple steps
+6. Use parallel for concurrent independent tasks
+
+USER INPUT:
+`;

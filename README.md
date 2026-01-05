@@ -98,7 +98,7 @@ return:
 
 This lets you reuse a single command template with different models - no need to duplicate commands just to change the model.
 
-**Syntax:** `{model:provider/model-id}` - must be attached directly to the command (no space). Use `||` to separate multiple overrides.
+**Syntax:** `{model:provider/model-id}` - must be attached directly to the command (no space). Use `&&` to separate multiple overrides.
 
 **Priority:** inline `{model:...}` > frontmatter `model:` field
 
@@ -116,7 +116,7 @@ return:
   - /review{agent:plan}
 ```
 
-**Syntax:** `{agent:agent-name}` - can be combined with other overrides using `||`.
+**Syntax:** `{agent:agent-name}` - can be combined with other overrides using `&&`.
 
 ### 2c. `/subtask{...} prompt` - Inline subtasks
 
@@ -124,8 +124,8 @@ Create a subtask directly in return chains or chat without needing a command fil
 
 ```yaml
 return:
-  - /subtask{loop:10||until:tests pass} Fix failing tests and run the suite
-  - /subtask{model:openai/gpt-4o||agent:build} Implement the feature
+  - /subtask{loop:10 && until:tests pass} Fix failing tests and run the suite
+  - /subtask{model:openai/gpt-4o && agent:build} Implement the feature
   - Summarize what was done
 ```
 
@@ -133,8 +133,17 @@ return:
 
 ```yaml
 return:
-  - /subtask{model:anthropic/claude-sonnet-4||agent:build||loop:5||until:all done} Implement and verify the auth system
+  - /subtask{model:anthropic/claude-sonnet-4 && agent:build && loop:5 && until:all done} Implement and verify the auth system
 ```
+
+**Inline returns** - chain returns directly within inline subtasks:
+
+```yaml
+return:
+  - /subtask{return:validate the output || run tests || deploy} implement the feature
+```
+
+Returns execute in order after the subtask completes, before continuing with the parent chain.
 
 **When to use:**
 
@@ -142,21 +151,21 @@ return:
 - Inline loops with specific conditions
 - Mixing models/agents in a single workflow
 
-**Syntax:** `/subtask{key:value||...} prompt text` - the `/subtask` prefix with `{` indicates an inline subtask. Use `||` to separate overrides.
+**Syntax:** `/subtask{key:value && ...} prompt text` - the `/subtask` prefix with `{` indicates an inline subtask. Use `&&` to separate parameters, and `||` to separate multi-value params like `return:` and `parallel:`.
 
 ### 2d. `/subtask prompt` - Simple inline subtasks from chat
 
 For simple subtasks without overrides:
 
 ```bash
-/subtask tell me a joke                                        # simple subtask
-/subtask{model:openai/gpt-4o} analyze this code                # with model override
-/subtask{agent:build||loop:3||until:all tests pass} fix tests  # with agent + loop
+/subtask tell me a joke                                                # simple subtask
+/subtask{model:openai/gpt-4o} analyze this code                        # with model override
+/subtask{agent:build && loop:3 && until:all tests pass} fix tests      # with agent + loop
 ```
 
 This lets you spawn ad-hoc subtasks without creating command files or using return chains.
 
-### 3. `{loop:N}` and `{loop:N||until:X}` - Loop control
+### 3. `{loop:N}` and `{loop:N && until:X}` - Loop control
 
 Run a command repeatedly, either a fixed number of times or until a condition is satisfied.
 
@@ -171,7 +180,7 @@ Runs exactly 5 times with no evaluation - the main session just yields between i
 **Conditional loop (with evaluation):**
 
 ```bash
-/fix-tests{loop:10||until:all tests pass with good coverage}
+/fix-tests{loop:10 && until:all tests pass with good coverage}
 ```
 
 **Frontmatter:**
@@ -190,7 +199,7 @@ Implement the auth system.
 ```yaml
 return:
   - /implement-feature
-  - /fix-tests{loop:5||until:tests are green}
+  - /fix-tests{loop:5 && until:tests are green}
   - /commit
 ```
 
@@ -358,6 +367,46 @@ Works in:
 - Command arguments
 - Parallel command prompts
 - Piped arguments (`||`)
+
+### 7. `subtask2: auto` - Dynamic Workflow Generation
+
+Let the LLM create and execute workflows dynamically:
+
+```yaml
+---
+description: auto-generate and execute a workflow
+agent: build
+model: openai/gpt-4o
+subtask2: auto
+---
+$ARGUMENTS
+```
+
+**Usage:**
+
+```bash
+/auto-workflow build a multi-model planning system with validation
+```
+
+The LLM will:
+
+1. Analyze your request
+2. Generate an appropriate workflow using inline syntax
+3. Execute that workflow automatically
+
+**How it works:**
+
+The auto mode spawns a subtask that teaches the LLM the subtask2 inline syntax. The LLM then generates a `/subtask{...}` command inside `<subtask2 auto="true">...</subtask2>` tags. This generated command is parsed and executed automatically.
+
+**Example generated workflow:**
+
+```
+<subtask2 auto="true">
+/subtask{model:openai/gpt-4o && return:validate the implementation || run all tests || commit if green} implement the auth system with JWT tokens
+</subtask2>
+```
+
+**Note:** `return`, `parallel`, and `$TURN` frontmatter fields are ignored in auto commands - the LLM generates these dynamically.
 
 </details>
 

@@ -10,10 +10,11 @@ import {
   getReturnArgsState,
   deleteReturnArgsState,
   setLastReturnWasCommand,
+  pushReturnStack,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
-import { parseCommandWithOverrides, hasTurnReferences } from "../parsing";
+import { parseCommandWithOverrides, hasTurnReferences, parseAutoWorkflowOutput } from "../parsing";
 import { resolveTurnReferences } from "./turns";
 import { startLoop } from "../loop";
 
@@ -27,6 +28,33 @@ export async function executeReturn(
   sessionID: string,
   loopOverride?: LoopConfig
 ) {
+  // SPECIAL: Auto workflow parse marker - parse and execute the generated workflow
+  if (item === "__subtask2_auto_parse__") {
+    const client = getClient();
+
+    // Get the last assistant message (the auto workflow output)
+    const messages = await client.session.messages({
+      path: { id: sessionID },
+    });
+    const lastMsg = messages.data?.[messages.data.length - 1];
+    const lastText = lastMsg?.parts?.find((p: any) => p.type === "text")?.text || "";
+
+    // Parse the auto workflow output
+    const result = parseAutoWorkflowOutput(lastText);
+
+    if (!result.found || !result.command) {
+      log(`executeReturn: auto workflow parse failed - no valid <subtask2 auto> tag found`);
+      return;
+    }
+
+    log(`executeReturn: parsed auto workflow: "${result.command.substring(0, 80)}..."`);
+
+    // Execute the parsed command as if user invoked it
+    // This recurses into executeReturn with the actual /subtask{...} command
+    await executeReturn(result.command, sessionID);
+    return;
+  }
+
   // Dedup check to prevent double execution
   const key = `${sessionID}:${item}`;
   if (hasExecutedReturn(key)) return;
@@ -62,6 +90,16 @@ export async function executeReturn(
         log(
           `executeReturn: started inline subtask loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`
         );
+      }
+
+      // Handle inline subtask returns - push onto stack (if not also looping)
+      // Loop + return conflict: if looping, returns are ignored (loop needs the return slot for evaluation)
+      if (parsed.overrides.loop && parsed.overrides.return?.length) {
+        log(`executeReturn: WARNING - inline subtask has both loop and return, returns will be ignored`);
+      } else if (parsed.overrides.return && parsed.overrides.return.length > 0) {
+        // No loop, safe to push returns onto stack
+        pushReturnStack(sessionID, [...parsed.overrides.return]);
+        log(`executeReturn: pushed ${parsed.overrides.return.length} inline returns onto stack`);
       }
 
       log(

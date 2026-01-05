@@ -39,6 +39,8 @@ export async function buildManifest(): Promise<Record<string, CommandConfig>> {
           description: fm.description as string | undefined,
           template: getTemplateBody(content),
           loop: fm.loop as any,
+          model: fm.model as string | undefined,
+          auto: fm.subtask2 === "auto",
         };
 
         // Store with filename-only key

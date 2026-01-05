@@ -13,6 +13,7 @@ import { log } from "../utils/logger";
 import { hasTurnReferences } from "../parsing";
 import { resolveTurnReferences } from "../features/turns";
 import { flattenParallels } from "../features/parallel";
+import { executeAutoWorkflow } from "../features/auto";
 import { startLoop, getLoopState } from "../loop";
 
 /**
@@ -37,6 +38,29 @@ export async function commandExecuteBefore(
         }
       : "no config"
   );
+
+  // CHECK FOR AUTO MODE FIRST - intercepts command and generates workflow dynamically
+  if (config?.auto) {
+    log(`command.execute.before: detected subtask2:auto for ${cmd}`);
+
+    // Build model if specified in frontmatter
+    let model: { providerID: string; modelID: string } | undefined;
+    if (config.model?.includes("/")) {
+      const [providerID, ...rest] = config.model.split("/");
+      model = { providerID, modelID: rest.join("/") };
+    }
+
+    // Execute auto workflow - ignores return/parallel/$TURN from frontmatter
+    await executeAutoWorkflow(
+      input.arguments || "",
+      input.sessionID,
+      config.agent,
+      model
+    );
+
+    // Prevent normal command execution
+    return { ...output, abort: true };
+  }
 
   // Check for model override: from pendingModelOverride (set by executeReturn)
   // or from inline syntax in arguments: {model:provider/id} at start

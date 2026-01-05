@@ -16,7 +16,9 @@ export interface CommandConfig {
   agent?: string;
   description?: string;
   template?: string;
-  loop?: LoopConfig; // Retry this command until completion
+  loop?: LoopConfig;
+  model?: string;
+  auto?: boolean; // subtask2: auto mode - LLM generates workflow dynamically
 }
 
 export interface Subtask2Config {

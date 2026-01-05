@@ -6,6 +6,8 @@ import {
   deletePendingNonSubtaskReturns,
   hasLastReturnWasCommand,
   deleteExecutedReturn,
+  hasReturnStack,
+  shiftReturnStack,
 } from "../core/state";
 import { log } from "../utils/logger";
 import { executeReturn } from "../features/returns";
@@ -117,7 +119,6 @@ export async function textComplete(input: any) {
 
   // Handle remaining returns
   const remaining = getReturnState(input.sessionID);
-  if (!remaining?.length || !client) return;
 
   // If a command/inline subtask is running, don't advance - tool.after will handle it
   if (hasLastReturnWasCommand(input.sessionID)) {
@@ -125,7 +126,21 @@ export async function textComplete(input: any) {
     return;
   }
 
+  // PRIORITY 1: Process stacked returns first (from nested inline subtasks)
+  if (hasReturnStack(input.sessionID)) {
+    const next = shiftReturnStack(input.sessionID);
+    if (next) {
+      log(`text.complete: executing stacked return: "${next.substring(0, 40)}..."`);
+      executeReturn(next, input.sessionID).catch(console.error);
+      return;
+    }
+  }
+
+  // PRIORITY 2: Process original return chain
+  if (!remaining?.length || !client) return;
+
   const next = remaining.shift()!;
   if (!remaining.length) deleteReturnState(input.sessionID);
+  log(`text.complete: executing return: "${next.substring(0, 40)}..."`);
   executeReturn(next, input.sessionID).catch(console.error);
 }
