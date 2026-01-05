@@ -98,7 +98,7 @@ return:
 
 This lets you reuse a single command template with different models - no need to duplicate commands just to change the model.
 
-**Syntax:** `{model:provider/model-id}` - must be attached directly to the command (no space).
+**Syntax:** `{model:provider/model-id}` - must be attached directly to the command (no space). Use `||` to separate multiple overrides.
 
 **Priority:** inline `{model:...}` > frontmatter `model:` field
 
@@ -116,7 +116,7 @@ return:
   - /review{agent:plan}
 ```
 
-**Syntax:** `{agent:agent-name}` - can be combined with other overrides.
+**Syntax:** `{agent:agent-name}` - can be combined with other overrides using `||`.
 
 ### 2c. `/subtask{...} prompt` - Inline subtasks
 
@@ -124,8 +124,8 @@ Create a subtask directly in return chains or chat without needing a command fil
 
 ```yaml
 return:
-  - /subtask{loop:10,until:tests pass} Fix failing tests and run the suite
-  - /subtask{model:openai/gpt-4o,agent:build} Implement the feature
+  - /subtask{loop:10||until:tests pass} Fix failing tests and run the suite
+  - /subtask{model:openai/gpt-4o||agent:build} Implement the feature
   - Summarize what was done
 ```
 
@@ -133,7 +133,7 @@ return:
 
 ```yaml
 return:
-  - /subtask{model:anthropic/claude-sonnet-4,agent:build,loop:5,until:all done} Implement and verify the auth system
+  - /subtask{model:anthropic/claude-sonnet-4||agent:build||loop:5||until:all done} Implement and verify the auth system
 ```
 
 **When to use:**
@@ -142,28 +142,36 @@ return:
 - Inline loops with specific conditions
 - Mixing models/agents in a single workflow
 
-**Syntax:** `/subtask{key:value,...} prompt text` - the `/subtask` prefix with `{` indicates an inline subtask.
+**Syntax:** `/subtask{key:value||...} prompt text` - the `/subtask` prefix with `{` indicates an inline subtask. Use `||` to separate overrides.
 
 ### 2d. `/subtask prompt` - Simple inline subtasks from chat
 
 For simple subtasks without overrides:
 
 ```bash
-/subtask tell me a joke                              # simple subtask
-/subtask{model:openai/gpt-4o} analyze this code      # with model override
-/subtask{agent:build,loop:3,until:all tests pass} my tests are failing, please advise  # with agent + loop
+/subtask tell me a joke                                        # simple subtask
+/subtask{model:openai/gpt-4o} analyze this code                # with model override
+/subtask{agent:build||loop:3||until:all tests pass} fix tests  # with agent + loop
 ```
 
 This lets you spawn ad-hoc subtasks without creating command files or using return chains.
 
-### 3. `{loop:N,until:X}` - Or the new 'look again' trick
+### 3. `{loop:N}` and `{loop:N||until:X}` - Loop control
 
-Run a command repeatedly until a condition is satisfied.
+Run a command repeatedly, either a fixed number of times or until a condition is satisfied.
 
-**Inline syntax:**
+**Unconditional loop (fixed iterations):**
 
 ```bash
-/fix-tests{loop:10,until:all tests pass with good coverage}
+/generate-tests{loop:5} generate unit tests for auth module
+```
+
+Runs exactly 5 times with no evaluation - the main session just yields between iterations.
+
+**Conditional loop (with evaluation):**
+
+```bash
+/fix-tests{loop:10||until:all tests pass with good coverage}
 ```
 
 **Frontmatter:**
@@ -182,7 +190,7 @@ Implement the auth system.
 ```yaml
 return:
   - /implement-feature
-  - /fix-tests{loop:5,until:tests are green}
+  - /fix-tests{loop:5||until:tests are green}
   - /commit
 ```
 

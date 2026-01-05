@@ -7,13 +7,14 @@ export interface CommandOverrides {
 }
 
 /**
- * Parse overrides string like "model:foo/bar,loop:10,until:condition"
+ * Parse overrides string like "model:foo/bar||loop:10||until:condition"
+ * Uses || as separator to allow commas in until conditions
  */
 export function parseOverridesString(overridesStr: string): CommandOverrides {
   const overrides: CommandOverrides = {};
 
-  // Parse key:value pairs separated by commas
-  const pairs = overridesStr.split(",");
+  // Parse key:value pairs separated by ||
+  const pairs = overridesStr.split("||");
   for (const pair of pairs) {
     const colonIdx = pair.indexOf(":");
     if (colonIdx > 0) {

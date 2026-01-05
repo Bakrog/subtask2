@@ -42,3 +42,14 @@ After evaluation:
 You may now proceed with the evaluation.
 </instructions>`;
 }
+
+/**
+ * Unconditional loop yield prompt - tells main session to yield so loop can continue
+ * Used when loop has no until condition (just {loop:N})
+ */
+export function loopYieldPrompt(iteration: number, max: number): string {
+  return `<instructions subtask2=loop-yield>
+A queued command iteration has completed (${iteration}/${max}).
+Please yield back now to allow the next iteration to run.
+</instructions>`;
+}

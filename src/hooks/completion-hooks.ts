@@ -29,16 +29,24 @@ export async function textComplete(input: any) {
   // Check for loop evaluation response (orchestrator-decides pattern)
   const evalState = getPendingEvaluation(input.sessionID);
   if (evalState) {
-    // Get the last assistant message to check for loop decision
-    const messages = await client.session.messages({
-      path: { id: input.sessionID },
-    });
-    const lastMsg = messages.data?.[messages.data.length - 1];
-    const lastText =
-      lastMsg?.parts?.find((p: any) => p.type === "text")?.text || "";
+    let decision: "break" | "continue" = "continue";
+    
+    // Only parse decision if this is a conditional loop (has until condition)
+    if (evalState.config.until) {
+      // Get the last assistant message to check for loop decision
+      const messages = await client.session.messages({
+        path: { id: input.sessionID },
+      });
+      const lastMsg = messages.data?.[messages.data.length - 1];
+      const lastText =
+        lastMsg?.parts?.find((p: any) => p.type === "text")?.text || "";
 
-    const decision = parseLoopDecision(lastText);
-    log(`retry: evaluation response decision=${decision}`);
+      decision = parseLoopDecision(lastText);
+      log(`loop: evaluation response decision=${decision}`);
+    } else {
+      // Unconditional loop: always continue (until max reached)
+      log(`loop: unconditional loop, auto-continuing`);
+    }
 
     clearPendingEvaluation(input.sessionID);
 

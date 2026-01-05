@@ -17,6 +17,7 @@ import { executeReturn } from "../features/returns";
 import {
   getAllPendingEvaluations,
   createEvaluationPrompt,
+  createYieldPrompt,
 } from "../loop";
 
 /**
@@ -91,15 +92,29 @@ export async function chatMessagesTransform(input: any, output: any) {
   if (lastGenericPart) {
     // Check for pending loop evaluation first (orchestrator-decides pattern)
     for (const [sessionID, retryState] of getAllPendingEvaluations()) {
-      const evalPrompt = createEvaluationPrompt(
-        retryState.config.until,
-        retryState.iteration,
-        retryState.config.max
-      );
-      lastGenericPart.text = evalPrompt;
-      log(
-        `retry: injected evaluation prompt for "${retryState.config.until}"`
-      );
+      // Check if this is an unconditional loop (no until condition)
+      if (!retryState.config.until) {
+        // Unconditional loop: inject yield prompt, no evaluation needed
+        const yieldPrompt = createYieldPrompt(
+          retryState.iteration,
+          retryState.config.max
+        );
+        lastGenericPart.text = yieldPrompt;
+        log(
+          `loop: injected yield prompt (unconditional loop ${retryState.iteration}/${retryState.config.max})`
+        );
+      } else {
+        // Conditional loop: inject evaluation prompt
+        const evalPrompt = createEvaluationPrompt(
+          retryState.config.until,
+          retryState.iteration,
+          retryState.config.max
+        );
+        lastGenericPart.text = evalPrompt;
+        log(
+          `loop: injected evaluation prompt for "${retryState.config.until}"`
+        );
+      }
       // Don't delete yet - we need it when parsing the response
       return;
     }
