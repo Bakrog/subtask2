@@ -31,6 +31,21 @@ const subtaskParentSession = new Map<string, string>();
 const pendingModelOverride = new Map<string, string>();
 const lastReturnWasCommand = new Map<string, boolean>();
 
+// Named subtask results storage: parentSessionID -> Map<name, result>
+const subtaskResults = new Map<string, Map<string, string>>();
+
+// Pending `as:` names for subtasks: subtaskSessionID -> {parentSessionID, name}
+const pendingResultCapture = new Map<
+  string,
+  { parentSessionID: string; name: string }
+>();
+
+// Pending `as:` by prompt content (race-safe, like pendingParentForPrompt)
+const pendingResultCaptureByPrompt = new Map<
+  string,
+  { parentSessionID: string; name: string }
+>();
+
 // Pending parent sessions keyed by prompt content (for race-safe session mapping)
 const pendingParentByPrompt = new Map<string, string>();
 let hasActiveSubtask = false;
@@ -415,4 +430,118 @@ export function getHasActiveSubtask(): boolean {
 
 export function setHasActiveSubtask(value: boolean): void {
   hasActiveSubtask = value;
+}
+
+// ============================================================================
+// Named Subtask Results ($RESULT[name])
+// ============================================================================
+
+/**
+ * Register a pending result capture by prompt content.
+ * Called when spawning a subtask with `as:` name (before we know the session ID).
+ */
+export function registerPendingResultCaptureByPrompt(
+  prompt: string,
+  parentSessionID: string,
+  name: string
+): void {
+  pendingResultCaptureByPrompt.set(prompt, { parentSessionID, name });
+}
+
+/**
+ * Consume a pending result capture by prompt content.
+ * Called when tool.execute.before fires and we know the subtask session ID.
+ */
+export function consumePendingResultCaptureByPrompt(
+  prompt: string
+): { parentSessionID: string; name: string } | undefined {
+  const entry = pendingResultCaptureByPrompt.get(prompt);
+  if (entry) {
+    pendingResultCaptureByPrompt.delete(prompt);
+  }
+  return entry;
+}
+
+/**
+ * Register a pending result capture by subtask session ID.
+ * Called when spawning a subtask with `as:` name.
+ */
+export function registerPendingResultCapture(
+  subtaskSessionID: string,
+  parentSessionID: string,
+  name: string
+): void {
+  pendingResultCapture.set(subtaskSessionID, { parentSessionID, name });
+}
+
+/**
+ * Check if a subtask session has a pending result capture.
+ */
+export function getPendingResultCapture(
+  subtaskSessionID: string
+): { parentSessionID: string; name: string } | undefined {
+  return pendingResultCapture.get(subtaskSessionID);
+}
+
+/**
+ * Consume and store a subtask result.
+ * Called when subtask completes - stores result and removes pending entry.
+ */
+export function captureSubtaskResult(
+  subtaskSessionID: string,
+  result: string
+): void {
+  const pending = pendingResultCapture.get(subtaskSessionID);
+  if (!pending) return;
+
+  const { parentSessionID, name } = pending;
+
+  if (!subtaskResults.has(parentSessionID)) {
+    subtaskResults.set(parentSessionID, new Map());
+  }
+  subtaskResults.get(parentSessionID)!.set(name, result);
+
+  pendingResultCapture.delete(subtaskSessionID);
+}
+
+/**
+ * Get a named result for a session.
+ */
+export function getSubtaskResult(
+  sessionID: string,
+  name: string
+): string | undefined {
+  return subtaskResults.get(sessionID)?.get(name);
+}
+
+/**
+ * Get all named results for a session.
+ */
+export function getAllSubtaskResults(
+  sessionID: string
+): Map<string, string> | undefined {
+  return subtaskResults.get(sessionID);
+}
+
+/**
+ * Resolve $RESULT[name] references in a string.
+ */
+export function resolveResultReferences(
+  text: string,
+  sessionID: string
+): string {
+  const results = subtaskResults.get(sessionID);
+  if (!results || results.size === 0) return text;
+
+  return text.replace(/\$RESULT\[([^\]]+)\]/g, (match, name) => {
+    const result = results.get(name);
+    return result ?? match; // Keep original if not found
+  });
+}
+
+/**
+ * Clear all results for a session (cleanup).
+ */
+export function clearSubtaskResults(sessionID: string): void {
+  subtaskResults.delete(sessionID);
 }

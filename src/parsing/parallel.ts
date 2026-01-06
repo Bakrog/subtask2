@@ -38,6 +38,7 @@ export function parseParallelItem(p: unknown): ParallelCommand | null {
         arguments: parsed.arguments,
         model: parsed.overrides.model,
         loop: parsed.overrides.loop,
+        as: parsed.overrides.as,
       };
     }
     return { command: trimmed };
@@ -48,6 +49,7 @@ export function parseParallelItem(p: unknown): ParallelCommand | null {
       arguments: (p as any).arguments,
       model: (p as any).model,
       loop: (p as any).loop,
+      as: (p as any).as,
     };
   }
   return null;

@@ -6,6 +6,7 @@ export interface CommandOverrides {
   loop?: LoopConfig;
   return?: string[];
   parallel?: string[];
+  as?: string; // Named result identifier for $RESULT[name] references
 }
 
 /**
@@ -52,6 +53,9 @@ export function parseOverridesString(overridesStr: string): CommandOverrides {
           .split("||")
           .map(s => s.trim())
           .filter(s => s.length > 0);
+      } else if (key === "as") {
+        // as:name - named result identifier
+        overrides.as = value;
       }
     }
   }

@@ -105,6 +105,25 @@ describe("parseOverridesString", () => {
     const result = parseOverridesString("until:condition: with: colons");
     expect(result.loop?.until).toBe("condition: with: colons");
   });
+
+  it("parses as: for named result capture", () => {
+    const result = parseOverridesString("as:my-result");
+    expect(result.as).toBe("my-result");
+  });
+
+  it("parses as: combined with model and agent", () => {
+    const result = parseOverridesString("model:openai/gpt-4o && agent:build && as:gpt-plan");
+    expect(result.model).toBe("openai/gpt-4o");
+    expect(result.agent).toBe("build");
+    expect(result.as).toBe("gpt-plan");
+  });
+
+  it("parses as: with loop and return", () => {
+    const result = parseOverridesString("loop:5 && until:done && as:loop-result && return:validate");
+    expect(result.loop).toEqual({ max: 5, until: "done" });
+    expect(result.as).toBe("loop-result");
+    expect(result.return).toEqual(["validate"]);
+  });
 });
 
 describe("parseAutoWorkflowOutput", () => {

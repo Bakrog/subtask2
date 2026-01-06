@@ -81,6 +81,7 @@ export async function flattenParallels(
         (fm.description as string) || `Parallel: ${parallelCmd.command}`,
       command: parallelCmd.command,
       prompt: template,
+      as: parallelCmd.as,
     });
 
     // Recursively flatten nested parallels

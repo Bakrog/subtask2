@@ -17,6 +17,11 @@ import {
   getSubtaskParentSession,
   deleteLastReturnWasCommand,
   setHasActiveSubtask,
+  consumePendingResultCaptureByPrompt,
+  registerPendingResultCapture,
+  getPendingResultCapture,
+  captureSubtaskResult,
+  getClient,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
@@ -57,6 +62,21 @@ export async function toolExecuteBefore(input: any, output: any) {
     log(
       `tool.before: mapped subtask ${input.sessionID} -> parent ${pendingParentSession}`
     );
+  }
+
+  // Check for pending result capture (as: override) and transfer to session-based lookup
+  if (prompt) {
+    const pendingCapture = consumePendingResultCaptureByPrompt(prompt);
+    if (pendingCapture) {
+      registerPendingResultCapture(
+        input.sessionID,
+        pendingCapture.parentSessionID,
+        pendingCapture.name
+      );
+      log(
+        `tool.before: registered result capture for session ${input.sessionID} as "${pendingCapture.name}"`
+      );
+    }
   }
 
   log(
@@ -168,6 +188,36 @@ export async function toolExecuteAfter(input: any, output: any) {
   // Clean up parent session mapping
   if (parentSession) {
     deleteSubtaskParentSession(input.sessionID);
+  }
+
+  // Capture result if this subtask has an `as:` name
+  const pendingCapture = getPendingResultCapture(input.sessionID);
+  if (pendingCapture) {
+    try {
+      const client = getClient();
+      const messages = await client.session.messages({
+        path: { id: input.sessionID },
+      });
+      // Get last assistant message text
+      const assistantMsgs = messages.data?.filter(
+        (m: any) => m.role === "assistant"
+      );
+      const lastMsg = assistantMsgs?.[assistantMsgs.length - 1];
+      const resultText =
+        lastMsg?.parts
+          ?.filter((p: any) => p.type === "text")
+          ?.map((p: any) => p.text)
+          ?.join("\n") || "";
+
+      if (resultText) {
+        captureSubtaskResult(input.sessionID, resultText);
+        log(
+          `tool.after: captured result for "${pendingCapture.name}" (${resultText.length} chars)`
+        );
+      }
+    } catch (err) {
+      log(`tool.after: failed to capture result: ${err}`);
+    }
   }
 
   const mainCmd =

@@ -8,6 +8,7 @@ import {
   deleteExecutedReturn,
   hasReturnStack,
   shiftReturnStack,
+  resolveResultReferences,
 } from "../core/state";
 import { log } from "../utils/logger";
 import { executeReturn } from "../features/returns";
@@ -114,8 +115,10 @@ export async function textComplete(input: any) {
   // Handle non-subtask command returns
   const pendingReturn = getPendingNonSubtaskReturns(input.sessionID);
   if (pendingReturn?.length && client) {
-    const next = pendingReturn.shift()!;
+    let next = pendingReturn.shift()!;
     if (!pendingReturn.length) deletePendingNonSubtaskReturns(input.sessionID);
+    // Resolve $RESULT[name] references
+    next = resolveResultReferences(next, input.sessionID);
     executeReturn(next, input.sessionID).catch(console.error);
     return;
   }
@@ -131,8 +134,10 @@ export async function textComplete(input: any) {
 
   // PRIORITY 1: Process stacked returns first (from nested inline subtasks)
   if (hasReturnStack(input.sessionID)) {
-    const next = shiftReturnStack(input.sessionID);
+    let next = shiftReturnStack(input.sessionID);
     if (next) {
+      // Resolve $RESULT[name] references
+      next = resolveResultReferences(next, input.sessionID);
       log(
         `text.complete: executing stacked return: "${next.substring(0, 40)}..."`
       );
@@ -144,8 +149,10 @@ export async function textComplete(input: any) {
   // PRIORITY 2: Process original return chain
   if (!remaining?.length || !client) return;
 
-  const next = remaining.shift()!;
+  let next = remaining.shift()!;
   if (!remaining.length) deleteReturnState(input.sessionID);
+  // Resolve $RESULT[name] references
+  next = resolveResultReferences(next, input.sessionID);
   log(`text.complete: executing return: "${next.substring(0, 40)}..."`);
   executeReturn(next, input.sessionID).catch(console.error);
 }

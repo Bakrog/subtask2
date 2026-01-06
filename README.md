@@ -33,6 +33,7 @@ If you already know opencode `/commands`, you'll be right at home, if not, start
 - `return` instruct main session on command/subtask(s) result - _can be chained_
 - `loop` loop subtask until user condition is met
 - `parallel` run subtasks concurrently - _pending PR ⚠️_
+- `as:` name subtask results for later reference with `$RESULT[name]`
 - `arguments` pass arguments with command frontmatter or `||` message pipe - _to any command_
 - `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
 - `agent`/`model`/`loop` inline override and subtask trigger
@@ -293,6 +294,51 @@ parallel: /research-docs, /research-codebase, /security-audit
 **Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return` are ignored - only the parent's `return` applies. Nested parallels are automatically flattened (max depth: 5).
 
 #### Priority: pipe args > frontmatter args > inherit main args
+
+### 4b. `{as:name}` - Named results with `$RESULT[name]`
+
+Capture subtask outputs and reference them later in return chains. Works with parallel commands, return commands, and inline subtasks.
+
+**Multi-model comparison with named results:**
+
+```yaml
+subtask: true
+parallel:
+  - /plan{model:anthropic/claude-sonnet-4 && as:claude-plan}
+  - /plan{model:openai/gpt-4o && as:gpt-plan}
+return:
+  - /deep-analysis{as:analysis}
+  - "Compare $RESULT[claude-plan] vs $RESULT[gpt-plan] using insights from $RESULT[analysis]"
+```
+
+This runs two planning subtasks with different models, then a deep analysis, then compares all three results in the final return.
+
+**In return chains:**
+
+```yaml
+return:
+  - /research{as:research}
+  - /design{as:design}
+  - "Implement based on $RESULT[research] and $RESULT[design]"
+```
+
+**With inline subtasks:**
+
+```yaml
+return:
+  - /subtask{model:openai/gpt-4o && as:gpt-take} analyze the auth flow
+  - /subtask{model:anthropic/claude-sonnet-4 && as:claude-take} analyze the auth flow  
+  - "Synthesize $RESULT[gpt-take] and $RESULT[claude-take] into a unified analysis"
+```
+
+**Syntax:** `{as:name}` - can be combined with other overrides using `&&`.
+
+**How it works:**
+
+1. When a subtask with `as:name` completes, its final output is captured
+2. The result is stored and associated with the parent session
+3. When processing return prompts, `$RESULT[name]` is replaced with the captured output
+4. If a result isn't found, it's replaced with `[Result 'name' not found]`
 
 ### 5. Subtask `return` fallback and custom defaults
 

@@ -1,4 +1,4 @@
-import { getClient, registerPendingParentForPrompt } from "../core/state";
+import { getClient, registerPendingParentForPrompt, registerPendingResultCaptureByPrompt } from "../core/state";
 import { log } from "../utils/logger";
 import { hasTurnReferences } from "../parsing";
 import { resolveTurnReferences } from "./turns";
@@ -56,6 +56,12 @@ export async function executeInlineSubtask(
 
   // Register parent session for $TURN resolution (race-safe: keyed by prompt)
   registerPendingParentForPrompt(prompt, sessionID);
+
+  // Register result capture if `as:` is specified
+  if (parsed.overrides.as) {
+    registerPendingResultCaptureByPrompt(prompt, sessionID, parsed.overrides.as);
+    log(`executeInlineSubtask: registered result capture as "${parsed.overrides.as}"`);
+  }
 
   // Execute as subtask via promptAsync
   try {

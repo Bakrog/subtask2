@@ -8,6 +8,7 @@ export interface ParallelCommand {
   arguments?: string;
   model?: string; // Override model: "provider/model-id"
   loop?: LoopConfig; // Retry until completion
+  as?: string; // Named result identifier for $RESULT[name] references
 }
 
 export interface CommandConfig {
@@ -33,4 +34,5 @@ export interface SubtaskPart {
   description: string;
   command: string;
   prompt: string;
+  as?: string; // Named result identifier for $RESULT[name] references
 }

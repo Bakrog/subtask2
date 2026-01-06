@@ -11,6 +11,7 @@ import {
   deleteReturnArgsState,
   setLastReturnWasCommand,
   pushReturnStack,
+  registerPendingResultCaptureByPrompt,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
@@ -133,6 +134,12 @@ export async function executeReturn(
       );
       // Register parent session for $TURN resolution (race-safe: keyed by prompt)
       registerPendingParentForPrompt(prompt, sessionID);
+
+      // Register result capture if `as:` is specified
+      if (parsed.overrides.as) {
+        registerPendingResultCaptureByPrompt(prompt, sessionID, parsed.overrides.as);
+        log(`executeReturn: registered result capture as "${parsed.overrides.as}"`);
+      }
 
       try {
         log(`executeReturn: calling promptAsync for inline subtask...`);
