@@ -10,10 +10,11 @@ import {
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
-import { hasTurnReferences } from "../parsing";
+import { hasTurnReferences, parseInlineSubtask, type CommandOverrides } from "../parsing";
 import { resolveTurnReferences } from "../features/turns";
 import { flattenParallels } from "../features/parallel";
 import { executeAutoWorkflow } from "../features/auto";
+import { executeInlineSubtask, buildInlineSubtaskPart } from "../features/inline-subtasks";
 import { startLoop, getLoopState } from "../loop";
 
 /**
@@ -25,6 +26,37 @@ export async function commandExecuteBefore(
   output: { parts: any[] }
 ) {
   const cmd = input.command;
+
+  // EARLY INTERCEPT: /subtask{...} inline subtask via command hook
+  // When subtask.md exists as placeholder, opencode routes /subtask{...} here
+  // Instead of abort (not always respected), we REPLACE output.parts with our subtask
+  if (cmd === "subtask" && input.arguments) {
+    const argsToCheck = input.arguments.trim();
+    let parsed: { prompt: string; overrides: CommandOverrides } | null = null;
+    
+    // Check if arguments start with { (inline subtask syntax)
+    if (argsToCheck.startsWith("{")) {
+      parsed = parseInlineSubtask(argsToCheck);
+      if (parsed) {
+        log(`/subtask command intercept: prompt="${parsed.prompt.substring(0, 50)}...", overrides=${JSON.stringify(parsed.overrides)}`);
+      }
+    }
+    // Also handle plain /subtask prompt (no overrides)
+    else if (argsToCheck.length > 0) {
+      parsed = { prompt: argsToCheck, overrides: {} };
+      log(`/subtask command intercept (plain): prompt="${parsed.prompt.substring(0, 50)}..."`);
+    }
+    
+    if (parsed) {
+      // Build the subtask part to replace the placeholder template
+      const subtaskPart = await buildInlineSubtaskPart(parsed, input.sessionID);
+      
+      // Replace output.parts entirely - command continues with our subtask
+      output.parts = [subtaskPart];
+      log(`/subtask: replaced output.parts with inline subtask`);
+      return output;
+    }
+  }
   const configs = getConfigs();
   const config = getConfig(configs, cmd);
   setSessionMainCommand(input.sessionID, cmd);
