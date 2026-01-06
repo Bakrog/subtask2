@@ -46,6 +46,9 @@ const pendingResultCaptureByPrompt = new Map<
   { parentSessionID: string; name: string }
 >();
 
+// Pending main session result capture (for non-subtask commands with as:)
+const pendingMainSessionCapture = new Map<string, string>();
+
 // Pending parent sessions keyed by prompt content (for race-safe session mapping)
 const pendingParentByPrompt = new Map<string, string>();
 let hasActiveSubtask = false;
@@ -435,6 +438,32 @@ export function setHasActiveSubtask(value: boolean): void {
 // ============================================================================
 // Named Subtask Results ($RESULT[name])
 // ============================================================================
+
+/**
+ * Register a pending main session capture.
+ * Called when a non-subtask command with `as:` is executed.
+ * The next LLM turn will be captured under this name.
+ */
+export function registerPendingMainSessionCapture(
+  sessionID: string,
+  name: string
+): void {
+  pendingMainSessionCapture.set(sessionID, name);
+}
+
+/**
+ * Consume a pending main session capture.
+ * Returns the name to capture under, or undefined if none pending.
+ */
+export function consumePendingMainSessionCapture(
+  sessionID: string
+): string | undefined {
+  const name = pendingMainSessionCapture.get(sessionID);
+  if (name) {
+    pendingMainSessionCapture.delete(sessionID);
+  }
+  return name;
+}
 
 /**
  * Register a pending result capture by prompt content.

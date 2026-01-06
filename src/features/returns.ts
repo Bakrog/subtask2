@@ -12,6 +12,7 @@ import {
   setLastReturnWasCommand,
   pushReturnStack,
   registerPendingResultCaptureByPrompt,
+  registerPendingMainSessionCapture,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
@@ -183,6 +184,13 @@ export async function executeReturn(
       log(
         `executeReturn: stored model override for ${sessionID}: ${parsed.overrides.model}`
       );
+    }
+
+    // Register result capture for non-subtask commands with `as:`
+    // The next LLM turn after the command completes will be captured
+    if (parsed.overrides.as) {
+      registerPendingMainSessionCapture(sessionID, parsed.overrides.as);
+      log(`executeReturn: registered main session capture as "${parsed.overrides.as}"`);
     }
 
     // Store loop config if present (inline takes precedence over passed-in)

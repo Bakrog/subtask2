@@ -9,6 +9,8 @@ import {
   hasReturnStack,
   shiftReturnStack,
   resolveResultReferences,
+  consumePendingMainSessionCapture,
+  captureSubtaskResult,
 } from "../core/state";
 import { log } from "../utils/logger";
 import { executeReturn } from "../features/returns";
@@ -30,6 +32,36 @@ export async function textComplete(input: any) {
   log(
     `text.complete: sessionID=${input.sessionID}, hasReturnState=${getReturnState(input.sessionID) !== undefined}`
   );
+
+  // Check for pending main session capture (non-subtask command with as:)
+  const pendingCaptureName = consumePendingMainSessionCapture(input.sessionID);
+  if (pendingCaptureName) {
+    try {
+      const messages = await client.session.messages({
+        path: { id: input.sessionID },
+      });
+      // Get last assistant message
+      const assistantMsgs = messages.data?.filter(
+        (m: any) => m.role === "assistant"
+      );
+      const lastMsg = assistantMsgs?.[assistantMsgs.length - 1];
+      const resultText =
+        lastMsg?.parts
+          ?.filter((p: any) => p.type === "text")
+          ?.map((p: any) => p.text)
+          ?.join("\n") || "";
+
+      if (resultText) {
+        // Store directly in this session (not parent, since it's main session)
+        captureSubtaskResult(input.sessionID, resultText);
+        log(
+          `text.complete: captured main session result for "${pendingCaptureName}" (${resultText.length} chars)`
+        );
+      }
+    } catch (err) {
+      log(`text.complete: failed to capture main session result: ${err}`);
+    }
+  }
 
   // Check for loop evaluation response (orchestrator-decides pattern)
   const evalState = getPendingEvaluation(input.sessionID);
