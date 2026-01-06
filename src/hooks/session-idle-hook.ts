@@ -4,8 +4,6 @@ import {
   deleteReturnState,
   getPendingNonSubtaskReturns,
   deletePendingNonSubtaskReturns,
-  hasLastReturnWasCommand,
-  deleteExecutedReturn,
   hasReturnStack,
   shiftReturnStack,
   resolveResultReferences,
@@ -24,21 +22,22 @@ import {
 } from "../loop";
 
 /**
- * Hook: experimental.text.complete
- * Handles return chain execution and loop continuation
+ * Hook: event handler for session.idle
+ * Fires when a session is truly idle (all work done).
+ * This is the authoritative signal to advance return chains and loop iterations.
  */
-export async function textComplete(input: any) {
+export async function handleSessionIdle(sessionID: string) {
   const client = getClient();
-  log(
-    `text.complete: sessionID=${input.sessionID}, hasReturnState=${getReturnState(input.sessionID) !== undefined}`
-  );
+  if (!client) return;
+
+  log(`session.idle: sessionID=${sessionID}`);
 
   // Check for pending main session capture (non-subtask command with as:)
-  const pendingCaptureName = consumePendingMainSessionCapture(input.sessionID);
+  const pendingCaptureName = consumePendingMainSessionCapture(sessionID);
   if (pendingCaptureName) {
     try {
       const messages = await client.session.messages({
-        path: { id: input.sessionID },
+        path: { id: sessionID },
       });
       // Get last assistant message
       const assistantMsgs = messages.data?.filter(
@@ -52,19 +51,18 @@ export async function textComplete(input: any) {
           ?.join("\n") || "";
 
       if (resultText) {
-        // Store directly in this session (not parent, since it's main session)
-        captureSubtaskResult(input.sessionID, resultText);
+        captureSubtaskResult(sessionID, resultText);
         log(
-          `text.complete: captured main session result for "${pendingCaptureName}" (${resultText.length} chars)`
+          `session.idle: captured main session result for "${pendingCaptureName}" (${resultText.length} chars)`
         );
       }
     } catch (err) {
-      log(`text.complete: failed to capture main session result: ${err}`);
+      log(`session.idle: failed to capture main session result: ${err}`);
     }
   }
 
   // Check for loop evaluation response (orchestrator-decides pattern)
-  const evalState = getPendingEvaluation(input.sessionID);
+  const evalState = getPendingEvaluation(sessionID);
   if (evalState) {
     let decision: "break" | "continue" = "continue";
 
@@ -72,7 +70,7 @@ export async function textComplete(input: any) {
     if (evalState.config.until) {
       // Get the last assistant message to check for loop decision
       const messages = await client.session.messages({
-        path: { id: input.sessionID },
+        path: { id: sessionID },
       });
       const lastMsg = messages.data?.[messages.data.length - 1];
       const lastText =
@@ -85,21 +83,21 @@ export async function textComplete(input: any) {
       log(`loop: unconditional loop, auto-continuing`);
     }
 
-    clearPendingEvaluation(input.sessionID);
+    clearPendingEvaluation(sessionID);
 
     if (decision === "continue") {
       // Increment and re-run
-      incrementLoopIteration(input.sessionID);
-      const state = getLoopState(input.sessionID);
+      incrementLoopIteration(sessionID);
+      const state = getLoopState(sessionID);
       if (state) {
         log(
-          `retry: continuing iteration ${state.iteration}/${state.config.max}`
+          `loop: continuing iteration ${state.iteration}/${state.config.max}`
         );
 
         if (state.commandName === "_inline_subtask_") {
           // Re-execute inline subtask directly via promptAsync
           log(
-            `retry: re-executing inline subtask with prompt "${state.arguments?.substring(0, 50)}..."`
+            `loop: re-executing inline subtask with prompt "${state.arguments?.substring(0, 50)}..."`
           );
 
           // Build model from override if present
@@ -111,80 +109,74 @@ export async function textComplete(input: any) {
 
           try {
             await client.session.promptAsync({
-              path: { id: input.sessionID },
+              path: { id: sessionID },
               body: {
                 parts: [
                   {
                     type: "subtask",
                     agent: state.agent || "build",
                     model,
-                    description: "Inline subtask (retry)",
+                    description: "Inline subtask (loop iteration)",
                     prompt: state.arguments || "",
                   },
                 ],
               },
             });
           } catch (e) {
-            log(`retry: inline subtask failed:`, e);
+            log(`loop: inline subtask failed:`, e);
           }
         } else {
           // Re-execute the command
           const cmdWithArgs = `/${state.commandName}${
             state.arguments ? " " + state.arguments : ""
           }`;
-          deleteExecutedReturn(`${input.sessionID}:${cmdWithArgs}`);
-          executeReturn(cmdWithArgs, input.sessionID).catch(console.error);
+          executeReturn(cmdWithArgs, sessionID).catch(console.error);
         }
         return;
       }
     } else {
       // Break - clear the loop and continue with normal flow
-      log(`retry: breaking loop, condition satisfied`);
-      clearLoop(input.sessionID);
+      log(`loop: breaking loop, condition satisfied`);
+      clearLoop(sessionID);
     }
   }
 
   // Handle non-subtask command returns
-  const pendingReturn = getPendingNonSubtaskReturns(input.sessionID);
-  if (pendingReturn?.length && client) {
+  const pendingReturn = getPendingNonSubtaskReturns(sessionID);
+  if (pendingReturn?.length) {
     let next = pendingReturn.shift()!;
-    if (!pendingReturn.length) deletePendingNonSubtaskReturns(input.sessionID);
+    if (!pendingReturn.length) deletePendingNonSubtaskReturns(sessionID);
     // Resolve $RESULT[name] references
-    next = resolveResultReferences(next, input.sessionID);
-    executeReturn(next, input.sessionID).catch(console.error);
-    return;
-  }
-
-  // Handle remaining returns
-  const remaining = getReturnState(input.sessionID);
-
-  // If a command/inline subtask is running, don't advance - tool.after will handle it
-  if (hasLastReturnWasCommand(input.sessionID)) {
-    log(`text.complete: waiting for command/inline subtask to complete`);
+    next = resolveResultReferences(next, sessionID);
+    log(
+      `session.idle: executing non-subtask return: "${next.substring(0, 40)}..."`
+    );
+    executeReturn(next, sessionID).catch(console.error);
     return;
   }
 
   // PRIORITY 1: Process stacked returns first (from nested inline subtasks)
-  if (hasReturnStack(input.sessionID)) {
-    let next = shiftReturnStack(input.sessionID);
+  if (hasReturnStack(sessionID)) {
+    let next = shiftReturnStack(sessionID);
     if (next) {
       // Resolve $RESULT[name] references
-      next = resolveResultReferences(next, input.sessionID);
+      next = resolveResultReferences(next, sessionID);
       log(
-        `text.complete: executing stacked return: "${next.substring(0, 40)}..."`
+        `session.idle: executing stacked return: "${next.substring(0, 40)}..."`
       );
-      executeReturn(next, input.sessionID).catch(console.error);
+      executeReturn(next, sessionID).catch(console.error);
       return;
     }
   }
 
   // PRIORITY 2: Process original return chain
-  if (!remaining?.length || !client) return;
+  const remaining = getReturnState(sessionID);
+  if (!remaining?.length) return;
 
   let next = remaining.shift()!;
-  if (!remaining.length) deleteReturnState(input.sessionID);
+  if (!remaining.length) deleteReturnState(sessionID);
   // Resolve $RESULT[name] references
-  next = resolveResultReferences(next, input.sessionID);
-  log(`text.complete: executing return: "${next.substring(0, 40)}..."`);
-  executeReturn(next, input.sessionID).catch(console.error);
+  next = resolveResultReferences(next, sessionID);
+  log(`session.idle: executing return: "${next.substring(0, 40)}..."`);
+  executeReturn(next, sessionID).catch(console.error);
 }

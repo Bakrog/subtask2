@@ -15,7 +15,6 @@ import {
   setSubtaskParentSession,
   deleteSubtaskParentSession,
   getSubtaskParentSession,
-  deleteLastReturnWasCommand,
   setHasActiveSubtask,
   consumePendingResultCaptureByPrompt,
   registerPendingResultCapture,
@@ -239,11 +238,6 @@ export async function toolExecuteAfter(input: any, output: any) {
     (cmd === retryLoop.commandName ||
       mainCmd === retryLoop.commandName ||
       isInlineLoopIteration);
-
-  // Clear command flag when inline subtask completes
-  if (retryLoop?.commandName === "_inline_subtask_") {
-    deleteLastReturnWasCommand(loopSession);
-  }
 
   if (isLoopIteration) {
     log(

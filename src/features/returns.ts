@@ -9,7 +9,6 @@ import {
   setPendingModelOverride,
   getReturnArgsState,
   deleteReturnArgsState,
-  setLastReturnWasCommand,
   pushReturnStack,
   registerPendingResultCaptureByPrompt,
   registerPendingMainSessionCapture,
@@ -169,8 +168,6 @@ export async function executeReturn(
       } catch (e) {
         log(`executeReturn inline subtask FAILED:`, e);
       }
-      // Mark as command so text.complete doesn't advance prematurely
-      setLastReturnWasCommand(sessionID, true);
       return;
     }
 

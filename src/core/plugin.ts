@@ -6,7 +6,7 @@ import { buildManifest } from "../commands/manifest";
 import { commandExecuteBefore } from "../hooks/command-hooks";
 import { toolExecuteBefore, toolExecuteAfter } from "../hooks/tool-hooks";
 import { chatMessagesTransform } from "../hooks/message-hooks";
-import { textComplete } from "../hooks/completion-hooks";
+import { handleSessionIdle } from "../hooks/session-idle-hook";
 
 /**
  * Core: Plugin entry point
@@ -31,6 +31,10 @@ export const createPlugin: Plugin = async ctx => {
     "tool.execute.before": toolExecuteBefore,
     "tool.execute.after": toolExecuteAfter,
     "experimental.chat.messages.transform": chatMessagesTransform,
-    "experimental.text.complete": textComplete,
+    event: async ({ event }: { event: { type: string; properties: any } }) => {
+      if (event.type === "session.idle") {
+        await handleSessionIdle(event.properties.sessionID);
+      }
+    },
   };
 };

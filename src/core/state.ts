@@ -29,7 +29,7 @@ const executedReturns = new Set<string>();
 const firstReturnPrompt = new Map<string, string>();
 const subtaskParentSession = new Map<string, string>();
 const pendingModelOverride = new Map<string, string>();
-const lastReturnWasCommand = new Map<string, boolean>();
+// REMOVED: lastReturnWasCommand - no longer needed with session.idle
 
 // Named subtask results storage: parentSessionID -> Map<name, result>
 const subtaskResults = new Map<string, Map<string, string>>();
@@ -371,30 +371,9 @@ export function deletePendingModelOverride(sessionID: string): void {
   pendingModelOverride.delete(sessionID);
 }
 
-// ============================================================================
-// Last Return Was Command
-// ============================================================================
-
-export function getLastReturnWasCommand(
-  sessionID: string
-): boolean | undefined {
-  return lastReturnWasCommand.get(sessionID);
-}
-
-export function setLastReturnWasCommand(
-  sessionID: string,
-  value: boolean
-): void {
-  lastReturnWasCommand.set(sessionID, value);
-}
-
-export function hasLastReturnWasCommand(sessionID: string): boolean {
-  return lastReturnWasCommand.has(sessionID);
-}
-
-export function deleteLastReturnWasCommand(sessionID: string): void {
-  lastReturnWasCommand.delete(sessionID);
-}
+// REMOVED: lastReturnWasCommand functions - no longer needed with session.idle
+// The session.idle event fires when the session is truly idle, eliminating
+// the need to track whether a command is still running.
 
 // ============================================================================
 // Pending Parent Session (keyed by prompt for race safety)
