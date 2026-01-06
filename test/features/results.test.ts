@@ -15,9 +15,7 @@ describe("hasResultReferences", () => {
   });
 
   it("returns true for multiple references", () => {
-    expect(
-      hasResultReferences("Compare $RESULT[a] and $RESULT[b]")
-    ).toBe(true);
+    expect(hasResultReferences("Compare $RESULT[a] and $RESULT[b]")).toBe(true);
   });
 
   it("returns false when no references", () => {

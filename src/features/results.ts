@@ -25,19 +25,21 @@ export function resolveResultReferences(
 ): string {
   // Reset lastIndex since we're reusing the regex
   RESULT_PATTERN.lastIndex = 0;
-  
+
   // Check if there are any references first
   if (!RESULT_PATTERN.test(text)) return text;
-  
+
   const results = getAllSubtaskResults(sessionID);
 
   // Reset again after test()
   RESULT_PATTERN.lastIndex = 0;
-  
+
   return text.replace(RESULT_PATTERN, (match, name) => {
     const result = results?.get(name);
     if (result) {
-      log(`resolveResultReferences: resolved $RESULT[${name}] (${result.length} chars)`);
+      log(
+        `resolveResultReferences: resolved $RESULT[${name}] (${result.length} chars)`
+      );
       return result;
     }
     log(`resolveResultReferences: $RESULT[${name}] not found`);

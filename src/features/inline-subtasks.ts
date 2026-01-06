@@ -1,4 +1,8 @@
-import { getClient, registerPendingParentForPrompt, registerPendingResultCaptureByPrompt } from "../core/state";
+import {
+  getClient,
+  registerPendingParentForPrompt,
+  registerPendingResultCaptureByPrompt,
+} from "../core/state";
 import { log } from "../utils/logger";
 import { hasTurnReferences, parseParallelItem } from "../parsing";
 import { resolveTurnReferences } from "./turns";
@@ -61,8 +65,14 @@ export async function buildInlineSubtaskPart(
 
   // Register result capture if `as:` is specified
   if (parsed.overrides.as) {
-    registerPendingResultCaptureByPrompt(prompt, sessionID, parsed.overrides.as);
-    log(`buildInlineSubtaskPart: registered result capture as "${parsed.overrides.as}"`);
+    registerPendingResultCaptureByPrompt(
+      prompt,
+      sessionID,
+      parsed.overrides.as
+    );
+    log(
+      `buildInlineSubtaskPart: registered result capture as "${parsed.overrides.as}"`
+    );
   }
 
   return {
@@ -123,8 +133,14 @@ export async function executeInlineSubtask(
 
   // Register result capture if `as:` is specified
   if (parsed.overrides.as) {
-    registerPendingResultCaptureByPrompt(prompt, sessionID, parsed.overrides.as);
-    log(`executeInlineSubtask: registered result capture as "${parsed.overrides.as}"`);
+    registerPendingResultCaptureByPrompt(
+      prompt,
+      sessionID,
+      parsed.overrides.as
+    );
+    log(
+      `executeInlineSubtask: registered result capture as "${parsed.overrides.as}"`
+    );
   }
 
   // Build subtask parts array - main subtask first
@@ -160,13 +176,17 @@ export async function executeInlineSubtask(
           as: pp.as,
         });
       }
-      log(`executeInlineSubtask: added ${parallelParts.length} parallel subtasks`);
+      log(
+        `executeInlineSubtask: added ${parallelParts.length} parallel subtasks`
+      );
     }
   }
 
   // Execute as subtask via promptAsync
   try {
-    log(`executeInlineSubtask: calling promptAsync for session ${sessionID} with ${parts.length} parts`);
+    log(
+      `executeInlineSubtask: calling promptAsync for session ${sessionID} with ${parts.length} parts`
+    );
     const result = await client.session.promptAsync({
       path: { id: sessionID },
       body: { parts },

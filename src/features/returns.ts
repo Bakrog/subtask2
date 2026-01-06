@@ -138,8 +138,14 @@ export async function executeReturn(
 
       // Register result capture if `as:` is specified
       if (parsed.overrides.as) {
-        registerPendingResultCaptureByPrompt(prompt, sessionID, parsed.overrides.as);
-        log(`executeReturn: registered result capture as "${parsed.overrides.as}"`);
+        registerPendingResultCaptureByPrompt(
+          prompt,
+          sessionID,
+          parsed.overrides.as
+        );
+        log(
+          `executeReturn: registered result capture as "${parsed.overrides.as}"`
+        );
       }
 
       try {
@@ -190,7 +196,9 @@ export async function executeReturn(
     // The next LLM turn after the command completes will be captured
     if (parsed.overrides.as) {
       registerPendingMainSessionCapture(sessionID, parsed.overrides.as);
-      log(`executeReturn: registered main session capture as "${parsed.overrides.as}"`);
+      log(
+        `executeReturn: registered main session capture as "${parsed.overrides.as}"`
+      );
     }
 
     // Store loop config if present (inline takes precedence over passed-in)
