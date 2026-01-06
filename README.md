@@ -1,18 +1,19 @@
 ## Extend opencode `/commands` into a powerful orchestration system
 
-### TL:DR - A less entropic agentic loop with more control
+![subtask2 header](media/header.webp)
+
+### TL:DR - Lower session entropy with a better and more controlled subagentic loop
 
 This plugin allows your opencode `/commands` to:
 
 - **Chain** `prompts`, `/commands` and `subagents`
-- **Relay** selective session context to subagents
-- **Loop** or **parallelize** tasks
-- **Steer** the outcome of the agentic flow
-- **Transform** flows into workflows
+- **Relay** subtask results or session context to subagents
+- **Loop** or **parallelize** subtasks
+- **Override** parameters inline (model, agent...)
+- **Create** file free commands with subtask2 inline commands
 
-If you already know opencode `/commands`, you'll be right at home, if not, start with [opencode's docs](https://opencode.ai/docs/commands/)
+If you already know opencode `/commands`, you'll be right at home, if not, start with [this page](https://opencode.ai/docs/commands/)
 
-![subtask2 header](media/header.webp)
 ![citation](media/quote.webp)
 
 **To install**, add subtask2 to your opencode configuration
@@ -26,17 +27,16 @@ If you already know opencode `/commands`, you'll be right at home, if not, start
 ---
 
 <details>
-<summary><strong>Feature documentation</strong></summary>
+<summary><strong>Features documentation</strong></summary>
 
 ### Key Features
 
-- `return` instruct main session on command/subtask(s) result - _can be chained_
-- `loop` loop subtask until user condition is met
+- `return` instruct main session on command/subtask(s) result
+- `as` name subtask results for later reference with `$RESULT[name]`
+- `loop` loop subtask until user condition is met - _WIP ⚠️_
 - `parallel` run subtasks concurrently - _pending PR ⚠️_
-- `as:` name subtask results for later reference with `$RESULT[name]`
-- `arguments` pass arguments with command frontmatter or `||` message pipe - _to any command_
-- `$TURN[n]` pass session turns (user/assistant messages) - _selective context feedback_
-- `agent`/`model`/`loop` inline override and subtask trigger
+- `arguments` pass arguments with command frontmatter or `||` message pipe
+- `$TURN[n]` pass session turns (user/assistant messages)
 
 Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
 
@@ -80,7 +80,7 @@ By default, opencode injects a user message after a `subtask: true` completes, a
 - **Any additional** `return` fire sequentially after each LLM turn completes - _accepts /commands_
 - **Commands** (starting with `/`) are executed as full commands with their own `parallel` and `return`
 
-**Note:** The first `return` of a `subtask: true` command cannot be a slash command as it subsitutes the opencode injected message (as a string)
+**Note:** The first `return` of a `subtask: true` command cannot be a slash command as it substitutes the opencode injected message (as a string)
 
 ### 2. `{model:...}` - Inline model override ⚠️ **PENDING PR**
 
@@ -153,6 +153,17 @@ Returns execute in order after the subtask completes, before continuing with the
 - Mixing models/agents in a single workflow
 
 **Syntax:** `/subtask{key:value && ...} prompt text` - the `/subtask` prefix with `{` indicates an inline subtask. Use `&&` to separate parameters, and `||` to separate multi-value params like `return:` and `parallel:`.
+
+**Override compatibility:**
+
+| Override           | `/subtask{}` | `/command{}`        |
+| ------------------ | ------------ | ------------------- |
+| `model:`           | ✓            | ✓                   |
+| `agent:`           | ✓            | ✓                   |
+| `loop:` / `until:` | ✓            | ✓                   |
+| `as:`              | ✓            | ✓                   |
+| `return:`          | ✓            | ✗ (use frontmatter) |
+| `parallel:`        | ✓            | ✗ (use frontmatter) |
 
 ### 2d. `/subtask prompt` - Simple inline subtasks from chat
 
@@ -263,7 +274,7 @@ Pipe segments map in chronological order: main → parallels → return /command
 /mycommand main args || pipe1 || pipe2 || pipe3
 ```
 
-and or
+and/or
 
 ```yaml
 parallel:
@@ -297,7 +308,7 @@ parallel: /research-docs, /research-codebase, /security-audit
 
 ### 4b. `{as:name}` - Named results with `$RESULT[name]`
 
-Capture subtask outputs and reference them later in return chains. Works with parallel commands, return commands, and inline subtasks.
+Capture command outputs and reference them later in return chains. Works with any command type - subtasks, parallel commands, inline subtasks, and even regular non-subtask commands.
 
 **Multi-model comparison with named results:**
 
@@ -327,7 +338,7 @@ return:
 ```yaml
 return:
   - /subtask{model:openai/gpt-4o && as:gpt-take} analyze the auth flow
-  - /subtask{model:anthropic/claude-sonnet-4 && as:claude-take} analyze the auth flow  
+  - /subtask{model:anthropic/claude-sonnet-4 && as:claude-take} analyze the auth flow
   - "Synthesize $RESULT[gpt-take] and $RESULT[claude-take] into a unified analysis"
 ```
 
