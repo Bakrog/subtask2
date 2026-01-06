@@ -27,7 +27,7 @@ If you already know opencode `/commands`, you'll be right at home, if not, start
 ---
 
 <details>
-<summary><strong>Features documentation</strong></summary>
+<summary><strong>Plugin documentation</strong></summary>
 
 ### Key Features
 
@@ -99,10 +99,6 @@ return:
 
 This lets you reuse a single command template with different models - no need to duplicate commands just to change the model.
 
-**Syntax:** `{model:provider/model-id}` - must be attached directly to the command (no space). Use `&&` to separate multiple overrides.
-
-**Priority:** inline `{model:...}` > frontmatter `model:` field
-
 ### 2b. `{agent:...}` - Inline agent override
 
 Override the agent for any command invocation:
@@ -146,24 +142,7 @@ return:
 
 Returns execute in order after the subtask completes, before continuing with the parent chain.
 
-**When to use:**
-
-- Quick one-off subtasks that don't need a reusable command file
-- Inline loops with specific conditions
-- Mixing models/agents in a single workflow
-
-**Syntax:** `/subtask{key:value && ...} prompt text` - the `/subtask` prefix with `{` indicates an inline subtask. Use `&&` to separate parameters, and `||` to separate multi-value params like `return:` and `parallel:`.
-
-**Override compatibility:**
-
-| Override           | `/subtask{}` | `/command{}`        |
-| ------------------ | ------------ | ------------------- |
-| `model:`           | ✓            | ✓                   |
-| `agent:`           | ✓            | ✓                   |
-| `loop:` / `until:` | ✓            | ✓                   |
-| `as:`              | ✓            | ✓                   |
-| `return:`          | ✓            | ✗ (use frontmatter) |
-| `parallel:`        | ✓            | ✗ (use frontmatter) |
+**Syntax:** `/subtask{key:value && ...} prompt text`. Use `&&` to separate parameters, and `||` to separate multi-value params like `return` and `parallel`.
 
 ### 2d. `/subtask prompt` - Simple inline subtasks from chat
 
@@ -472,7 +451,7 @@ The LLM will:
 </details>
 
 <details>
-<summary><strong>Some examples</strong></summary>
+<summary><strong>Examples</strong></summary>
 
 **Parallel subtask with different models (A/B/C plan comparison)**
 
