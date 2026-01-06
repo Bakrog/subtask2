@@ -2,7 +2,7 @@
 
 ![subtask2 header](media/header.webp)
 
-### TL:DR - Lower session entropy with a better and more controlled subagentic loop
+### TL:DR - Lower session entropy with a better and more controlled agentic loop
 
 This plugin allows your opencode `/commands` to:
 
@@ -176,6 +176,29 @@ For simple subtasks without overrides:
 ```
 
 This lets you spawn ad-hoc subtasks without creating command files or using return chains.
+
+**Instant execution with command placeholder:**
+
+By default, inline `/subtask{...}` commands are detected via message transform, which means the subtask only spawns after the LLM yields back. To make inline subtasks execute **immediately** when typed, create an empty placeholder command file:
+
+```markdown
+## <!-- ~/.config/opencode/command/subtask.md -->
+
+description: Inline subtask placeholder (handled by subtask2 plugin)
+subtask: true
+
+---
+
+$ARGUMENTS
+```
+
+With this file in place:
+
+- opencode recognizes `/subtask` as a command and triggers the command hook instantly
+- subtask2 intercepts the command, parses the `{...}` overrides, and spawns the subtask
+- No waiting for the LLM to finish its turn - execution is immediate
+
+Without the placeholder file, inline subtasks still work but execute after the model completes its response.
 
 ### 3. `{loop:N}` and `{loop:N && until:X}` - Loop control
 
