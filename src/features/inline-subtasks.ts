@@ -1,9 +1,10 @@
 import { getClient, registerPendingParentForPrompt, registerPendingResultCaptureByPrompt } from "../core/state";
 import { log } from "../utils/logger";
-import { hasTurnReferences } from "../parsing";
+import { hasTurnReferences, parseParallelItem } from "../parsing";
 import { resolveTurnReferences } from "./turns";
 import type { CommandOverrides } from "../parsing";
 import { startLoop } from "../loop";
+import { flattenParallels } from "./parallel";
 
 /**
  * Feature: Inline subtask execution
@@ -63,22 +64,49 @@ export async function executeInlineSubtask(
     log(`executeInlineSubtask: registered result capture as "${parsed.overrides.as}"`);
   }
 
+  // Build subtask parts array - main subtask first
+  const parts: any[] = [
+    {
+      type: "subtask",
+      agent: parsed.overrides.agent || "build",
+      model,
+      description: "Inline subtask",
+      prompt,
+    },
+  ];
+
+  // Add parallel subtasks if specified
+  if (parsed.overrides.parallel?.length) {
+    const parallelCommands = parsed.overrides.parallel
+      .map(p => parseParallelItem(p))
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+
+    if (parallelCommands.length) {
+      const parallelParts = await flattenParallels(
+        parallelCommands,
+        "", // No main args for inline subtask parallels
+        sessionID
+      );
+      for (const pp of parallelParts) {
+        parts.push({
+          type: "subtask",
+          agent: pp.agent,
+          model: pp.model,
+          description: pp.description,
+          prompt: pp.prompt,
+          as: pp.as,
+        });
+      }
+      log(`executeInlineSubtask: added ${parallelParts.length} parallel subtasks`);
+    }
+  }
+
   // Execute as subtask via promptAsync
   try {
-    log(`executeInlineSubtask: calling promptAsync for session ${sessionID}`);
+    log(`executeInlineSubtask: calling promptAsync for session ${sessionID} with ${parts.length} parts`);
     const result = await client.session.promptAsync({
       path: { id: sessionID },
-      body: {
-        parts: [
-          {
-            type: "subtask",
-            agent: parsed.overrides.agent || "build",
-            model,
-            description: "Inline subtask",
-            prompt,
-          },
-        ],
-      },
+      body: { parts },
     });
     log(
       `executeInlineSubtask: promptAsync returned: ${JSON.stringify(result)}`
