@@ -2,7 +2,7 @@
 
 ![subtask2 header](media/header.webp)
 
-### TL:DR - Lower session entropy with a better and more controlled agentic loop
+### TL:DR - Lower session entropy with a better controlled agentic loop
 
 This plugin allows your opencode `/commands` to:
 
@@ -10,7 +10,7 @@ This plugin allows your opencode `/commands` to:
 - **Relay** subtask results or session context to subagents
 - **Loop** or **parallelize** subtasks
 - **Override** parameters inline (model, agent...)
-- **Create** file free commands with subtask2 inline commands
+- **Create** commands on the fly with subtask2 inline commands
 
 If you already know opencode `/commands`, you'll be right at home, if not, start with [this page](https://opencode.ai/docs/commands/)
 
@@ -449,9 +449,8 @@ Let the LLM create and execute workflows dynamically:
 ```yaml
 ---
 description: auto-generate and execute a workflow
-agent: build
-model: openai/gpt-4o
 subtask2: auto
+subtask: true
 ---
 $ARGUMENTS
 ```
@@ -465,22 +464,10 @@ $ARGUMENTS
 The LLM will:
 
 1. Analyze your request
-2. Generate an appropriate workflow using inline syntax
+2. Generate an appropriate workflow
 3. Execute that workflow automatically
 
-**How it works:**
-
-The auto mode spawns a subtask that teaches the LLM the subtask2 inline syntax. The LLM then generates a `/subtask{...}` command inside `<subtask2 auto="true">...</subtask2>` tags. This generated command is parsed and executed automatically.
-
-**Example generated workflow:**
-
-```
-<subtask2 auto="true">
-/subtask{model:openai/gpt-4o && return:validate the implementation || run all tests || commit if green} implement the auth system with JWT tokens
-</subtask2>
-```
-
-**Note:** `return`, `parallel`, and `$TURN` frontmatter fields are ignored in auto commands - the LLM generates these dynamically.
+**Note:** `return`, `parallel`, and `$TURN` are ignored in auto commands - the LLM generates these dynamically.
 
 </details>
 
