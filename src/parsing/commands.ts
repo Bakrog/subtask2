@@ -75,7 +75,21 @@ export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
   // Must start with {
   if (!trimmed.startsWith("{")) return null;
 
-  const braceEnd = trimmed.indexOf("}");
+  // Find matching closing brace (handle nested braces)
+  let depth = 0;
+  let braceEnd = -1;
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed[i] === "{") {
+      depth++;
+    } else if (trimmed[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        braceEnd = i;
+        break;
+      }
+    }
+  }
+
   if (braceEnd === -1) return null;
 
   const overrideStr = trimmed.substring(1, braceEnd);

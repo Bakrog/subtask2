@@ -7,6 +7,7 @@ import {
   hasProcessedS2Message,
   addProcessedS2Message,
   OPENCODE_GENERIC,
+  getConfigs,
 } from "../core/state";
 import { log } from "../utils/logger";
 import { DEFAULT_PROMPT } from "../utils/config";
@@ -43,6 +44,15 @@ export async function chatMessagesTransform(input: any, output: any) {
         textLower.startsWith("/subtask{") ||
         textLower.startsWith("/subtask ")
       ) {
+        // If /subtask command exists, defer to command-hooks.ts for instant execution
+        const configs = getConfigs();
+        if (configs["subtask"]) {
+          log(
+            `/subtask detected but deferring to command hook (subtask command exists)`
+          );
+          continue;
+        }
+
         log(`/subtask detected in message: "${text.substring(0, 60)}..."`);
 
         // Mark as processed BEFORE spawning
