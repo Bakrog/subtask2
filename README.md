@@ -115,14 +115,14 @@ return:
 
 **Syntax:** `{agent:agent-name}` - can be combined with other overrides using `&&`.
 
-### 2c. `/subtask{...} prompt` - Inline subtasks
+### 2c. `/subtask {...} prompt` - Inline subtasks
 
-Create a subtask directly in return chains or chat without needing a command file. Use `/subtask{...}` followed by your prompt:
+Create a subtask directly in return chains or chat without needing a command file. Use `/subtask {...}` (with a space before the brace) followed by your prompt:
 
 ```yaml
 return:
-  - /subtask{loop:10 && until:tests pass} Fix failing tests and run the suite
-  - /subtask{model:openai/gpt-4o && agent:build} Implement the feature
+  - /subtask {loop:10 && until:tests pass} Fix failing tests and run the suite
+  - /subtask {model:openai/gpt-4o && agent:build} Implement the feature
   - Summarize what was done
 ```
 
@@ -130,19 +130,21 @@ return:
 
 ```yaml
 return:
-  - /subtask{model:anthropic/claude-sonnet-4 && agent:build && loop:5 && until:all done} Implement and verify the auth system
+  - /subtask {model:anthropic/claude-sonnet-4 && agent:build && loop:5 && until:all done} Implement and verify the auth system
 ```
 
 **Inline returns** - chain returns directly within inline subtasks:
 
 ```yaml
 return:
-  - /subtask{return:validate the output || run tests || deploy} implement the feature
+  - /subtask {return:validate the output || run tests || deploy} implement the feature
 ```
 
 Returns execute in order after the subtask completes, before continuing with the parent chain.
 
-**Syntax:** `/subtask{key:value && ...} prompt text`. Use `&&` to separate parameters, and `||` to separate multi-value params like `return` and `parallel`.
+**Syntax:** `/subtask {key:value && ...} prompt text`. Use `&&` to separate parameters, and `||` to separate multi-value params like `return` and `parallel`.
+
+**Important:** The space between `/subtask` and `{` is required for instant execution. This allows OpenCode to recognize it as the `/subtask` command and trigger it immediately.
 
 ### 2d. `/subtask prompt` - Simple inline subtasks from chat
 
@@ -150,15 +152,15 @@ For simple subtasks without overrides:
 
 ```bash
 /subtask tell me a joke                                                # simple subtask
-/subtask{model:openai/gpt-4o} analyze this code                        # with model override
-/subtask{agent:build && loop:3 && until:all tests pass} fix tests      # with agent + loop
+/subtask {model:openai/gpt-4o} analyze this code                       # with model override
+/subtask {agent:build && loop:3 && until:all tests pass} fix tests     # with agent + loop
 ```
 
 This lets you spawn ad-hoc subtasks without creating command files or using return chains.
 
 **Instant execution with command placeholder:**
 
-By default, inline `/subtask{...}` commands are detected via message transform, which means the subtask only spawns after the LLM yields back. To make inline subtasks execute **immediately** when typed, create an empty placeholder command file:
+To make inline subtasks execute **immediately** when typed, create a placeholder command file:
 
 ```markdown
 ## <!-- ~/.config/opencode/command/subtask.md -->
@@ -173,7 +175,7 @@ $ARGUMENTS
 
 With this file in place:
 
-- opencode recognizes `/subtask` as a command and triggers the command hook instantly
+- OpenCode recognizes `/subtask` as a command and triggers the command hook instantly
 - subtask2 intercepts the command, parses the `{...}` overrides, and spawns the subtask
 - No waiting for the LLM to finish its turn - execution is immediate
 
@@ -186,7 +188,7 @@ Run a command repeatedly, either a fixed number of times or until a condition is
 **Unconditional loop (fixed iterations):**
 
 ```bash
-/generate-tests{loop:5} generate unit tests for auth module
+/generate-tests {loop:5} generate unit tests for auth module
 ```
 
 Runs exactly 5 times with no evaluation - the main session just yields between iterations.
@@ -194,7 +196,7 @@ Runs exactly 5 times with no evaluation - the main session just yields between i
 **Conditional loop (with evaluation):**
 
 ```bash
-/fix-tests{loop:10 && until:all tests pass with good coverage}
+/fix-tests {loop:10 && until:all tests pass with good coverage}
 ```
 
 **Frontmatter:**
@@ -213,7 +215,7 @@ Implement the auth system.
 ```yaml
 return:
   - /implement-feature
-  - /fix-tests{loop:5 && until:tests are green}
+  - /fix-tests {loop:5 && until:tests are green}
   - /commit
 ```
 
@@ -317,10 +319,10 @@ Capture command outputs and reference them later in return chains. Works with an
 ```yaml
 subtask: true
 parallel:
-  - /plan{model:anthropic/claude-sonnet-4 && as:claude-plan}
-  - /plan{model:openai/gpt-4o && as:gpt-plan}
+  - /plan {model:anthropic/claude-sonnet-4 && as:claude-plan}
+  - /plan {model:openai/gpt-4o && as:gpt-plan}
 return:
-  - /deep-analysis{as:analysis}
+  - /deep-analysis {as:analysis}
   - "Compare $RESULT[claude-plan] vs $RESULT[gpt-plan] using insights from $RESULT[analysis]"
 ```
 
@@ -330,8 +332,8 @@ This runs two planning subtasks with different models, then a deep analysis, the
 
 ```yaml
 return:
-  - /research{as:research}
-  - /design{as:design}
+  - /research {as:research}
+  - /design {as:design}
   - "Implement based on $RESULT[research] and $RESULT[design]"
 ```
 
@@ -339,8 +341,8 @@ return:
 
 ```yaml
 return:
-  - /subtask{model:openai/gpt-4o && as:gpt-take} analyze the auth flow
-  - /subtask{model:anthropic/claude-sonnet-4 && as:claude-take} analyze the auth flow
+  - /subtask {model:openai/gpt-4o && as:gpt-take} analyze the auth flow
+  - /subtask {model:anthropic/claude-sonnet-4 && as:claude-take} analyze the auth flow
   - "Synthesize $RESULT[gpt-take] and $RESULT[claude-take] into a unified analysis"
 ```
 
@@ -515,7 +517,7 @@ Conceptually design a React modal component with the following requirements
 **Inline subtask with parallel and nested models**
 
 ```bash
-/subtask{parallel: /subtask{model:anthropic/claude-opus-4.5} || /subtask{model:openai/gpt-5.2} && return:Compare both outputs and synthesize the best approach} Design the auth system architecture
+/subtask {parallel: /subtask {model:anthropic/claude-opus-4.5} || /subtask {model:openai/gpt-5.2} && return:Compare both outputs and synthesize the best approach} Design the auth system architecture
 ```
 
 This runs 3 subtasks:

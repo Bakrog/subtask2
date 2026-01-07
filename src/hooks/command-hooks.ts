@@ -34,8 +34,8 @@ export async function commandExecuteBefore(
 ) {
   const cmd = input.command;
 
-  // EARLY INTERCEPT: /subtask{...} inline subtask via command hook
-  // When subtask.md exists as placeholder, opencode routes /subtask{...} here
+  // EARLY INTERCEPT: /subtask {...} inline subtask via command hook
+  // When subtask.md exists as placeholder, opencode routes /subtask {...} here
   // Instead of abort (not always respected), we REPLACE output.parts with our subtask
   if (cmd === "subtask" && input.arguments) {
     const argsToCheck = input.arguments.trim();

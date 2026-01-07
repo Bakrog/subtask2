@@ -60,7 +60,7 @@ export async function executeReturn(
     );
 
     // Execute the parsed command as if user invoked it
-    // This recurses into executeReturn with the actual /subtask{...} command
+    // This recurses into executeReturn with the actual /subtask {...} command
     await executeReturn(result.command, sessionID);
     return;
   }

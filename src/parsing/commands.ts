@@ -4,12 +4,12 @@ export interface ParsedCommand {
   command: string;
   arguments?: string;
   overrides: CommandOverrides;
-  isInlineSubtask?: boolean; // true for /subtask{...} prompt syntax
+  isInlineSubtask?: boolean; // true for /subtask {...} prompt syntax
 }
 
 /**
  * Parse a command string with optional overrides: /cmd{model:provider/model-id} args
- * Also supports inline subtask syntax: /subtask{loop:5,until:condition} prompt text
+ * Also supports inline subtask syntax: /subtask {loop:5,until:condition} prompt text
  * Syntax: /command{key:value,key2:value2} arguments
  * No space between command and {overrides}
  */
@@ -20,7 +20,7 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
     return { command: trimmed, overrides: {} };
   }
 
-  // Check for inline subtask syntax: /subtask{...} prompt (case-insensitive)
+  // Check for inline subtask syntax: /subtask {...} prompt (case-insensitive)
   const inlineMatch = trimmed.match(
     /^\/[sS][uU][bB][tT][aA][sS][kK]\{([^}]+)\}\s+(.+)$/s
   );
@@ -65,7 +65,7 @@ export interface ParsedInlineSubtask {
 }
 
 /**
- * Parse /subtask{...} prompt inline subtask syntax
+ * Parse /subtask {...} prompt inline subtask syntax
  * Input should NOT include the /subtask prefix
  * Returns null if not valid inline subtask syntax
  */

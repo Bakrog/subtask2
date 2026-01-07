@@ -4,7 +4,7 @@
 
 export interface AutoWorkflowResult {
   found: boolean;
-  command?: string; // The full /subtask{...} command
+  command?: string; // The full /subtask {...} command
 }
 
 /**

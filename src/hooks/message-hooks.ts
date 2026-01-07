@@ -23,10 +23,12 @@ import {
 
 /**
  * Hook: experimental.chat.messages.transform
- * Handles /subtask{...} inline subtasks and return prompt injection
+ * Handles /subtask {...} inline subtasks and return prompt injection
  */
 export async function chatMessagesTransform(input: any, output: any) {
-  // Check for /subtask{...} or /subtask inline subtask in user messages
+  // Check for /subtask in user messages
+  // With the placeholder command file, OpenCode routes /subtask to command hook
+  // This is a fallback for when no placeholder exists
   for (const msg of output.messages) {
     if (msg.info?.role !== "user") continue;
 
@@ -37,14 +39,11 @@ export async function chatMessagesTransform(input: any, output: any) {
     for (const part of msg.parts) {
       if (part.type !== "text") continue;
       const text = part.text.trim();
-
-      // Match /subtask{...} or /subtask (space) - case insensitive
       const textLower = text.toLowerCase();
-      if (
-        textLower.startsWith("/subtask{") ||
-        textLower.startsWith("/subtask ")
-      ) {
-        // If /subtask command exists, defer to command-hooks.ts for instant execution
+
+      // Match /subtask (with space) - the recommended syntax
+      if (textLower.startsWith("/subtask ")) {
+        // If /subtask command exists, defer to command hook for instant execution
         const configs = getConfigs();
         if (configs["subtask"]) {
           log(
@@ -53,17 +52,19 @@ export async function chatMessagesTransform(input: any, output: any) {
           continue;
         }
 
-        log(`/subtask detected in message: "${text.substring(0, 60)}..."`);
+        // Fallback: handle via message transform when no placeholder command exists
+        log(
+          `/subtask detected in message (no placeholder): "${text.substring(0, 60)}..."`
+        );
 
         // Mark as processed BEFORE spawning
         if (msgId) addProcessedS2Message(msgId);
 
-        // Parse: remove "/subtask" prefix, parseInlineSubtask handles both {overrides} and plain prompt
-        const prefixLen = "/subtask".length;
-        const toParse = textLower.startsWith("/subtask{")
-          ? text.substring(prefixLen)
-          : `{} ${text.substring(prefixLen + 1)}`;
-        const parsed = parseInlineSubtask(toParse);
+        // Parse: remove "/subtask " prefix
+        const toParse = text.substring("/subtask ".length);
+        // Wrap in {} if it doesn't start with { (plain prompt case)
+        const parseInput = toParse.startsWith("{") ? toParse : `{} ${toParse}`;
+        const parsed = parseInlineSubtask(parseInput);
 
         if (parsed) {
           log(
@@ -85,7 +86,7 @@ export async function chatMessagesTransform(input: any, output: any) {
           }
           return;
         } else {
-          log(`/subtask parse failed for: "${toParse}"`);
+          log(`/subtask parse failed for: "${parseInput}"`);
         }
       }
     }

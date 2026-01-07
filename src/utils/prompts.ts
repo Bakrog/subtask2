@@ -86,7 +86,7 @@ Using the subtask2 inline syntax documented above, create a workflow to fulfill 
 
 1. Output your reasoning first - analyze what the user needs and how to best structure the workflow
 2. Then output the workflow inside: <subtask2 auto="true">...</subtask2>
-3. The workflow must be a single /subtask{...} command with inline syntax
+3. The workflow must be a single /subtask {...} command with inline syntax
 4. Do NOT create files - the workflow executes in memory
 5. Use returns to chain multiple steps
 6. Use parallel for concurrent independent tasks
