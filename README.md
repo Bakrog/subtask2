@@ -512,4 +512,18 @@ Conceptually design a React modal component with the following requirements
 > $ARGUMENTS
 ```
 
+**Inline subtask with parallel and nested models**
+
+```bash
+/subtask{parallel: /subtask{model:anthropic/claude-opus-4.5} || /subtask{model:openai/gpt-5.2} && return:Compare both outputs and synthesize the best approach} Design the auth system architecture
+```
+
+This runs 3 subtasks:
+
+1. Main task with `agent:build`
+2. Parallel subtask with Claude Sonnet
+3. Parallel subtask with GPT-4o
+
+After all complete, the `return` prompt synthesizes the results.
+
 </details>
