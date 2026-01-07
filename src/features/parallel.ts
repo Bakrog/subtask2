@@ -39,7 +39,12 @@ export async function flattenParallels(
 
   for (let i = 0; i < parallels.length; i++) {
     const parallelCmd = parallels[i];
-    if (visited.has(parallelCmd.command)) continue;
+
+    // Mark command as visited BEFORE loading to prevent its nested parallels
+    // from re-adding the same command. This prevents self-referential parallels
+    // (e.g., /parallel.md has parallel: [/parallel, /parallel]) from duplicating.
+    // Note: We still process ALL items in the user's explicit list (no filtering here),
+    // the visited set only affects nested parallel expansion.
     visited.add(parallelCmd.command);
 
     const cmdFile = await loadCommandFile(parallelCmd.command);
@@ -84,21 +89,32 @@ export async function flattenParallels(
       as: parallelCmd.as,
     });
 
-    // Recursively flatten nested parallels
+    // Recursively flatten nested parallels (with cycle detection)
     const nestedParallel = fm.parallel;
     if (nestedParallel) {
       const nestedArr = parseParallelConfig(nestedParallel);
 
       if (nestedArr.length) {
-        const nestedParts = await flattenParallels(
-          nestedArr,
-          args,
-          sessionID,
-          visited,
-          depth + 1,
-          maxDepth
-        );
-        parts.push(...nestedParts);
+        // Filter out commands already in visited (cycle detection)
+        const filteredNested = nestedArr.filter(nested => {
+          if (visited.has(nested.command)) {
+            log(`Skipping nested parallel ${nested.command}: already visited`);
+            return false;
+          }
+          return true;
+        });
+
+        if (filteredNested.length) {
+          const nestedParts = await flattenParallels(
+            filteredNested,
+            args,
+            sessionID,
+            visited,
+            depth + 1,
+            maxDepth
+          );
+          parts.push(...nestedParts);
+        }
       }
     }
   }
