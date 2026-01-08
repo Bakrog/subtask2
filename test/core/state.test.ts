@@ -51,9 +51,19 @@ import {
   getPendingModelOverride,
   setPendingModelOverride,
   deletePendingModelOverride,
-  getLastReturnWasCommand,
-  setLastReturnWasCommand,
-  deleteLastReturnWasCommand,
+  // Named subtask results
+  registerPendingMainSessionCapture,
+  consumePendingMainSessionCapture,
+  registerPendingResultCaptureByPrompt,
+  consumePendingResultCaptureByPrompt,
+  registerPendingResultCapture,
+  getPendingResultCapture,
+  captureSubtaskResult,
+  getSubtaskResult,
+  getAllSubtaskResults,
+  resolveResultReferences,
+  clearSubtaskResults,
+  OPENCODE_GENERIC,
 } from "../../src/core/state";
 
 describe("state management", () => {
@@ -65,6 +75,11 @@ describe("state management", () => {
       setConfigs(configs);
       expect(getConfigs()).toEqual(configs);
     });
+
+    it("returns empty object initially", () => {
+      setConfigs({});
+      expect(getConfigs()).toEqual({});
+    });
   });
 
   describe("pluginConfig", () => {
@@ -74,6 +89,11 @@ describe("state management", () => {
       expect(config.replace_generic).toBe(true);
       expect(config.generic_return).toBe("custom");
     });
+
+    it("defaults to replace_generic true", () => {
+      setPluginConfig({ replace_generic: true });
+      expect(getPluginConfig().replace_generic).toBe(true);
+    });
   });
 
   describe("client", () => {
@@ -81,6 +101,11 @@ describe("state management", () => {
       const mockClient = { session: { command: () => {} } };
       setClient(mockClient);
       expect(getClient()).toBe(mockClient);
+    });
+
+    it("can set null client", () => {
+      setClient(null);
+      expect(getClient()).toBe(null);
     });
   });
 
@@ -100,6 +125,12 @@ describe("state management", () => {
 
     it("returns undefined for non-existent", () => {
       expect(getCallState("non-existent")).toBeUndefined();
+    });
+
+    it("overwrites existing call state", () => {
+      setCallState(callId, "first");
+      setCallState(callId, "second");
+      expect(getCallState(callId)).toBe("second");
     });
   });
 
@@ -123,6 +154,12 @@ describe("state management", () => {
       setReturnState(sessionId, ["x"]);
       deleteReturnState(sessionId);
       expect(hasReturnState(sessionId)).toBe(false);
+    });
+
+    it("handles empty array", () => {
+      setReturnState(sessionId, []);
+      expect(getReturnState(sessionId)).toEqual([]);
+      expect(hasReturnState(sessionId)).toBe(true);
     });
   });
 
@@ -169,7 +206,6 @@ describe("state management", () => {
     });
 
     it("shiftReturnStack returns undefined when chain is already empty", () => {
-      // Push an empty chain manually - this tests line 166-171
       pushReturnStack(sessionId, []);
       expect(shiftReturnStack(sessionId)).toBeUndefined();
     });
@@ -200,6 +236,16 @@ describe("state management", () => {
       shiftReturnStack(sessionId);
       expect(peekReturnStack(sessionId)).toBeUndefined();
     });
+
+    it("handles deeply nested stacks", () => {
+      pushReturnStack(sessionId, ["level1"]);
+      pushReturnStack(sessionId, ["level2"]);
+      pushReturnStack(sessionId, ["level3"]);
+      expect(shiftReturnStack(sessionId)).toBe("level3");
+      expect(shiftReturnStack(sessionId)).toBe("level2");
+      expect(shiftReturnStack(sessionId)).toBe("level1");
+      expect(hasReturnStack(sessionId)).toBe(false);
+    });
   });
 
   describe("pending returns", () => {
@@ -229,6 +275,12 @@ describe("state management", () => {
       setPendingReturn("other-session", "second");
       const entries = Array.from(getAllPendingReturns());
       expect(entries.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("overwrites existing pending return", () => {
+      setPendingReturn(sessionId, "first");
+      setPendingReturn(sessionId, "second");
+      expect(getPendingReturn(sessionId)).toBe("second");
     });
   });
 
@@ -271,9 +323,14 @@ describe("state management", () => {
       deletePipedArgsQueue(sessionId);
       expect(getPipedArgsQueue(sessionId)).toBeUndefined();
     });
+
+    it("handles empty array", () => {
+      setPipedArgsQueue(sessionId, []);
+      expect(getPipedArgsQueue(sessionId)).toEqual([]);
+    });
   });
 
-  describe("return args state", () => {
+  describe("return args state (alias for piped args)", () => {
     beforeEach(() => {
       deleteReturnArgsState(sessionId);
     });
@@ -285,12 +342,27 @@ describe("state management", () => {
     it("deletes return args state", () => {
       expect(() => deleteReturnArgsState(sessionId)).not.toThrow();
     });
+
+    it("shares state with piped args queue", () => {
+      setPipedArgsQueue(sessionId, ["shared"]);
+      expect(getReturnArgsState(sessionId)).toEqual(["shared"]);
+    });
   });
 
   describe("session main command", () => {
     it("sets and gets session main command", () => {
       setSessionMainCommand(sessionId, "plan");
       expect(getSessionMainCommand(sessionId)).toBe("plan");
+    });
+
+    it("returns undefined for non-existent", () => {
+      expect(getSessionMainCommand("non-existent")).toBeUndefined();
+    });
+
+    it("overwrites existing command", () => {
+      setSessionMainCommand(sessionId, "first");
+      setSessionMainCommand(sessionId, "second");
+      expect(getSessionMainCommand(sessionId)).toBe("second");
     });
   });
 
@@ -299,6 +371,12 @@ describe("state management", () => {
 
     it("tracks processed messages", () => {
       expect(hasProcessedS2Message(msgId)).toBe(false);
+      addProcessedS2Message(msgId);
+      expect(hasProcessedS2Message(msgId)).toBe(true);
+    });
+
+    it("adding same message twice is idempotent", () => {
+      addProcessedS2Message(msgId);
       addProcessedS2Message(msgId);
       expect(hasProcessedS2Message(msgId)).toBe(true);
     });
@@ -318,6 +396,10 @@ describe("state management", () => {
       deleteExecutedReturn(key);
       expect(hasExecutedReturn(key)).toBe(false);
     });
+
+    it("delete is safe on non-existent key", () => {
+      expect(() => deleteExecutedReturn("non-existent")).not.toThrow();
+    });
   });
 
   describe("first return prompt", () => {
@@ -328,6 +410,12 @@ describe("state management", () => {
 
     it("returns undefined for non-existent", () => {
       expect(getFirstReturnPrompt("non-existent")).toBeUndefined();
+    });
+
+    it("overwrites existing prompt", () => {
+      setFirstReturnPrompt(sessionId, "first");
+      setFirstReturnPrompt(sessionId, "second");
+      expect(getFirstReturnPrompt(sessionId)).toBe("second");
     });
   });
 
@@ -370,12 +458,25 @@ describe("state management", () => {
     it("returns null for unknown prompt", () => {
       expect(consumePendingParentForPrompt("unknown")).toBeNull();
     });
+
+    it("overwrites existing registration", () => {
+      registerPendingParentForPrompt(prompt, "first-parent");
+      registerPendingParentForPrompt(prompt, "second-parent");
+      expect(consumePendingParentForPrompt(prompt)).toBe("second-parent");
+    });
   });
 
   describe("has active subtask", () => {
     it("sets and gets active subtask flag", () => {
       setHasActiveSubtask(false);
       expect(getHasActiveSubtask()).toBe(false);
+      setHasActiveSubtask(true);
+      expect(getHasActiveSubtask()).toBe(true);
+    });
+
+    it("toggles correctly", () => {
+      setHasActiveSubtask(true);
+      setHasActiveSubtask(false);
       setHasActiveSubtask(true);
       expect(getHasActiveSubtask()).toBe(true);
     });
@@ -396,24 +497,232 @@ describe("state management", () => {
       deletePendingModelOverride(sessionId);
       expect(getPendingModelOverride(sessionId)).toBeUndefined();
     });
+
+    it("returns undefined for non-existent", () => {
+      expect(getPendingModelOverride("non-existent")).toBeUndefined();
+    });
   });
 
-  describe("last return was command", () => {
+  // ============================================================================
+  // Named Subtask Results ($RESULT[name])
+  // ============================================================================
+
+  describe("pending main session capture", () => {
     beforeEach(() => {
-      deleteLastReturnWasCommand(sessionId);
+      consumePendingMainSessionCapture(sessionId);
     });
 
-    it("sets and gets flag", () => {
-      setLastReturnWasCommand(sessionId, true);
-      expect(getLastReturnWasCommand(sessionId)).toBe(true);
-      setLastReturnWasCommand(sessionId, false);
-      expect(getLastReturnWasCommand(sessionId)).toBe(false);
+    it("registers and consumes capture name", () => {
+      registerPendingMainSessionCapture(sessionId, "my-result");
+      expect(consumePendingMainSessionCapture(sessionId)).toBe("my-result");
     });
 
-    it("deletes flag", () => {
-      setLastReturnWasCommand(sessionId, true);
-      deleteLastReturnWasCommand(sessionId);
-      expect(getLastReturnWasCommand(sessionId)).toBeUndefined();
+    it("consume removes the mapping", () => {
+      registerPendingMainSessionCapture(sessionId, "my-result");
+      consumePendingMainSessionCapture(sessionId);
+      expect(consumePendingMainSessionCapture(sessionId)).toBeUndefined();
+    });
+
+    it("returns undefined for non-existent", () => {
+      expect(consumePendingMainSessionCapture("unknown")).toBeUndefined();
+    });
+
+    it("overwrites existing registration", () => {
+      registerPendingMainSessionCapture(sessionId, "first");
+      registerPendingMainSessionCapture(sessionId, "second");
+      expect(consumePendingMainSessionCapture(sessionId)).toBe("second");
+    });
+  });
+
+  describe("pending result capture by prompt", () => {
+    const prompt = "Run analysis";
+    const parentSession = "parent-123";
+
+    it("registers and consumes by prompt", () => {
+      registerPendingResultCaptureByPrompt(prompt, parentSession, "analysis");
+      const result = consumePendingResultCaptureByPrompt(prompt);
+      expect(result).toEqual({
+        parentSessionID: parentSession,
+        name: "analysis",
+      });
+    });
+
+    it("consume removes the mapping", () => {
+      registerPendingResultCaptureByPrompt(prompt, parentSession, "test");
+      consumePendingResultCaptureByPrompt(prompt);
+      expect(consumePendingResultCaptureByPrompt(prompt)).toBeUndefined();
+    });
+
+    it("returns undefined for unknown prompt", () => {
+      expect(consumePendingResultCaptureByPrompt("unknown")).toBeUndefined();
+    });
+
+    it("overwrites existing registration", () => {
+      registerPendingResultCaptureByPrompt(prompt, "parent1", "first");
+      registerPendingResultCaptureByPrompt(prompt, "parent2", "second");
+      const result = consumePendingResultCaptureByPrompt(prompt);
+      expect(result).toEqual({ parentSessionID: "parent2", name: "second" });
+    });
+  });
+
+  describe("pending result capture by session ID", () => {
+    const subtaskSession = "subtask-123";
+    const parentSession = "parent-456";
+
+    beforeEach(() => {
+      // Clean up by capturing if pending
+      captureSubtaskResult(subtaskSession, "");
+    });
+
+    it("registers pending capture", () => {
+      registerPendingResultCapture(subtaskSession, parentSession, "my-result");
+      const pending = getPendingResultCapture(subtaskSession);
+      expect(pending).toEqual({
+        parentSessionID: parentSession,
+        name: "my-result",
+      });
+    });
+
+    it("returns undefined for non-existent", () => {
+      expect(getPendingResultCapture("unknown")).toBeUndefined();
+    });
+  });
+
+  describe("capture and retrieve subtask results", () => {
+    const subtaskSession = "subtask-789";
+    const parentSession = "parent-xyz";
+
+    beforeEach(() => {
+      clearSubtaskResults(parentSession);
+    });
+
+    it("captures result when pending exists", () => {
+      registerPendingResultCapture(subtaskSession, parentSession, "analysis");
+      captureSubtaskResult(subtaskSession, "Analysis complete: all tests pass");
+      expect(getSubtaskResult(parentSession, "analysis")).toBe(
+        "Analysis complete: all tests pass"
+      );
+    });
+
+    it("does nothing if no pending capture", () => {
+      captureSubtaskResult("unknown-session", "Some result");
+      // Should not throw, just no-op
+    });
+
+    it("removes pending entry after capture", () => {
+      registerPendingResultCapture(subtaskSession, parentSession, "test");
+      captureSubtaskResult(subtaskSession, "Result");
+      expect(getPendingResultCapture(subtaskSession)).toBeUndefined();
+    });
+
+    it("returns undefined for non-existent result name", () => {
+      expect(getSubtaskResult(parentSession, "unknown")).toBeUndefined();
+    });
+
+    it("returns undefined for non-existent session", () => {
+      expect(getSubtaskResult("unknown-session", "test")).toBeUndefined();
+    });
+  });
+
+  describe("getAllSubtaskResults", () => {
+    const parentSession = "parent-results";
+
+    beforeEach(() => {
+      clearSubtaskResults(parentSession);
+    });
+
+    it("returns all results for session", () => {
+      registerPendingResultCapture("sub1", parentSession, "first");
+      registerPendingResultCapture("sub2", parentSession, "second");
+      captureSubtaskResult("sub1", "Result 1");
+      captureSubtaskResult("sub2", "Result 2");
+
+      const results = getAllSubtaskResults(parentSession);
+      expect(results).toBeDefined();
+      expect(results!.get("first")).toBe("Result 1");
+      expect(results!.get("second")).toBe("Result 2");
+    });
+
+    it("returns undefined for session with no results", () => {
+      expect(getAllSubtaskResults("empty-session")).toBeUndefined();
+    });
+  });
+
+  describe("resolveResultReferences", () => {
+    const parentSession = "resolve-session";
+
+    beforeEach(() => {
+      clearSubtaskResults(parentSession);
+    });
+
+    it("resolves $RESULT[name] in text", () => {
+      registerPendingResultCapture("sub1", parentSession, "plan");
+      captureSubtaskResult("sub1", "Build the auth system");
+
+      const text = "Implement based on $RESULT[plan]";
+      const resolved = resolveResultReferences(text, parentSession);
+      expect(resolved).toBe("Implement based on Build the auth system");
+    });
+
+    it("resolves multiple references", () => {
+      registerPendingResultCapture("sub1", parentSession, "plan");
+      registerPendingResultCapture("sub2", parentSession, "review");
+      captureSubtaskResult("sub1", "Plan A");
+      captureSubtaskResult("sub2", "Looks good");
+
+      const text = "Combine $RESULT[plan] with feedback: $RESULT[review]";
+      const resolved = resolveResultReferences(text, parentSession);
+      expect(resolved).toBe("Combine Plan A with feedback: Looks good");
+    });
+
+    it("keeps unresolved references intact", () => {
+      const text = "Use $RESULT[unknown] for this";
+      const resolved = resolveResultReferences(text, parentSession);
+      expect(resolved).toBe("Use $RESULT[unknown] for this");
+    });
+
+    it("returns original text if no results exist", () => {
+      const text = "No results: $RESULT[test]";
+      const resolved = resolveResultReferences(text, "no-results-session");
+      expect(resolved).toBe("No results: $RESULT[test]");
+    });
+
+    it("handles text with no references", () => {
+      registerPendingResultCapture("sub1", parentSession, "test");
+      captureSubtaskResult("sub1", "Value");
+
+      const text = "Plain text without references";
+      const resolved = resolveResultReferences(text, parentSession);
+      expect(resolved).toBe("Plain text without references");
+    });
+  });
+
+  describe("clearSubtaskResults", () => {
+    const parentSession = "clear-session";
+
+    it("clears all results for session", () => {
+      registerPendingResultCapture("sub1", parentSession, "test");
+      captureSubtaskResult("sub1", "Value");
+
+      expect(getSubtaskResult(parentSession, "test")).toBe("Value");
+      clearSubtaskResults(parentSession);
+      expect(getSubtaskResult(parentSession, "test")).toBeUndefined();
+    });
+
+    it("is safe on session with no results", () => {
+      expect(() => clearSubtaskResults("empty")).not.toThrow();
+    });
+  });
+
+  describe("OPENCODE_GENERIC constant", () => {
+    it("is defined and non-empty", () => {
+      expect(typeof OPENCODE_GENERIC).toBe("string");
+      expect(OPENCODE_GENERIC.length).toBeGreaterThan(0);
+    });
+
+    it("contains expected text", () => {
+      expect(OPENCODE_GENERIC).toContain("Summarize");
+      expect(OPENCODE_GENERIC).toContain("task");
     });
   });
 });

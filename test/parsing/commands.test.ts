@@ -114,6 +114,13 @@ describe("parseCommandWithOverrides", () => {
     expect(result.arguments).toBeUndefined();
   });
 
+  it("fallback: handles slash followed by space and text", () => {
+    // Edge case: "/ something" - slash then space triggers fallback
+    const result = parseCommandWithOverrides("/ args");
+    expect(result.command).toBe("");
+    expect(result.arguments).toBe("args");
+  });
+
   it("parses command names stopping at unsupported chars", () => {
     // Dots and @ are not allowed in command names, so parsing stops there
     const result = parseCommandWithOverrides("/file.test more args");
