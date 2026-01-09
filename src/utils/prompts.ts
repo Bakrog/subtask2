@@ -11,7 +11,7 @@ export { _resetReadmeCache } from "./config";
  * Default return prompt when no return is specified and replace_generic is true
  */
 export const DEFAULT_RETURN_PROMPT =
-  "Review, challenge and validate the task output against the codebase then continue with the next logical step.";
+  "Review, challenge then validate or revise the previous task tool output, then inform the user of the next logical steps they can take";
 
 /**
  * Placeholder for README content in auto workflow prompt
@@ -21,7 +21,7 @@ const README_PLACEHOLDER = "{{SUBTASK2_README}}";
 /**
  * Instruction for /subtask inline subtask - makes LLM say minimal response while subtask runs
  */
-export const S2_INLINE_INSTRUCTION = `<system>Say this phrase EXACTLY and nothing else: "Running subagent..."</system>`;
+export const S2_INLINE_INSTRUCTION = `<system>The user has queued a tool for execution, please yield back now and say: "Running subagent..."</system>`;
 
 /**
  * Loop evaluation prompt - used as subtask return
@@ -59,8 +59,7 @@ You may now proceed with the evaluation.
  */
 export function loopYieldPrompt(iteration: number, max: number): string {
   return `<instructions subtask2=loop-yield>
-A queued command iteration has completed (${iteration}/${max}).
-Please yield back now to allow the next iteration to run.
+Please yield back now to allow the next loop iteration to run.
 </instructions>`;
 }
 
