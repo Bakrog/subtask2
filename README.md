@@ -442,6 +442,12 @@ $ARGUMENTS
 /auto-workflow build a multi-model planning system with validation
 ```
 
+You can also trigger auto mode directly from an inline subtask:
+
+```bash
+/subtask {auto:true} build a multi-model planning system with validation
+```
+
 The LLM will:
 
 1. Analyze your request

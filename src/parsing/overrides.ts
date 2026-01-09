@@ -7,6 +7,7 @@ export interface CommandOverrides {
   return?: string[];
   parallel?: string[];
   as?: string; // Named result identifier for $RESULT[name] references
+  auto?: boolean; // Auto workflow mode - LLM generates workflow dynamically
 }
 
 /**
@@ -56,6 +57,9 @@ export function parseOverridesString(overridesStr: string): CommandOverrides {
       } else if (key === "as") {
         // as:name - named result identifier
         overrides.as = value;
+      } else if (key === "auto") {
+        // auto:true - enable auto workflow mode
+        overrides.auto = value === "true";
       }
     }
   }

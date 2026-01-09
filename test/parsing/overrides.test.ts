@@ -128,6 +128,25 @@ describe("parseOverridesString", () => {
     expect(result.as).toBe("loop-result");
     expect(result.return).toEqual(["validate"]);
   });
+
+  it("parses auto:true for auto workflow mode", () => {
+    const result = parseOverridesString("auto:true");
+    expect(result.auto).toBe(true);
+  });
+
+  it("parses auto:true combined with other overrides", () => {
+    const result = parseOverridesString(
+      "auto:true && model:openai/gpt-4o && agent:build"
+    );
+    expect(result.auto).toBe(true);
+    expect(result.model).toBe("openai/gpt-4o");
+    expect(result.agent).toBe("build");
+  });
+
+  it("auto:false is not truthy", () => {
+    const result = parseOverridesString("auto:false");
+    expect(result.auto).toBe(false);
+  });
 });
 
 describe("parseAutoWorkflowOutput", () => {

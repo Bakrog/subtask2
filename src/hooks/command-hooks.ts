@@ -59,6 +59,29 @@ export async function commandExecuteBefore(
     }
 
     if (parsed) {
+      // Check for auto mode in inline subtask
+      if (parsed.overrides.auto) {
+        log(`/subtask command intercept: auto mode enabled`);
+
+        // Build model from override if present
+        let model: { providerID: string; modelID: string } | undefined;
+        if (parsed.overrides.model?.includes("/")) {
+          const [providerID, ...rest] = parsed.overrides.model.split("/");
+          model = { providerID, modelID: rest.join("/") };
+        }
+
+        // Execute auto workflow
+        await executeAutoWorkflow(
+          parsed.prompt,
+          input.sessionID,
+          parsed.overrides.agent,
+          model
+        );
+
+        // Prevent normal command execution
+        return { ...output, abort: true };
+      }
+
       // Build the subtask part to replace the placeholder template
       const subtaskPart = await buildInlineSubtaskPart(parsed, input.sessionID);
 
