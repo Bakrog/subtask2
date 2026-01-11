@@ -11,7 +11,7 @@ export { _resetReadmeCache } from "./config";
  * Default return prompt when no return is specified and replace_generic is true
  */
 export const DEFAULT_RETURN_PROMPT =
-  "Review, challenge then validate or revise the previous task tool output, then inform the user of the next logical steps they can take";
+  "Challenge AND review THEN validate OR revise the previous task tool output, then USE the question tool to let the user choose the next logical thing to do. Order your questions defensively and logically.";
 
 /**
  * Placeholder for README content in auto workflow prompt
@@ -59,6 +59,7 @@ You may now proceed with the evaluation.
  */
 export function loopYieldPrompt(iteration: number, max: number): string {
   return `<instructions subtask2=loop-yield>
+Loop progress: ${iteration}/${max} iterations.
 Please yield back now to allow the next loop iteration to run.
 </instructions>`;
 }

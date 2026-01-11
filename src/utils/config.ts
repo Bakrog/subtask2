@@ -61,7 +61,7 @@ function isValidConfig(obj: unknown): obj is Subtask2Config {
 
 export async function loadConfig(): Promise<Subtask2Config> {
   const defaultConfig: Subtask2Config = {
-    replace_generic: false,
+    replace_generic: true,
   };
 
   try {
@@ -82,10 +82,10 @@ export async function loadConfig(): Promise<Subtask2Config> {
     CONFIG_PATH,
     `{
   // Replace OpenCode's generic "Summarize..." prompt when no return is specified
-  "replace_generic": false
+  "replace_generic": true
 
-  // Custom prompt to use (uses subtask2 substitution prompt by default)
-  // "generic_return": "Challenge and validate the task tool output above. Verify assumptions, identify gaps or errors, then continue with the next logical step."
+  // Custom prompt to use when replacing_generic: true | optional
+  //"generic_return": "Challenge AND review THEN validate OR revise the previous task tool output. AFTER This is done, USE the question tool to let the user direct the next step. Order your questions defensively and logically"
 }
 `
   );

@@ -99,7 +99,7 @@ describe("loadConfig", () => {
   it("returns default config for invalid JSON", async () => {
     await writeFile(TEST_CONFIG_PATH, "not valid json {{");
     const config = await loadConfig();
-    expect(config.replace_generic).toBe(false);
+    expect(config.replace_generic).toBe(true);
   });
 
   it("returns default config when replace_generic is not boolean", async () => {
@@ -108,7 +108,7 @@ describe("loadConfig", () => {
       JSON.stringify({ replace_generic: "yes" })
     );
     const config = await loadConfig();
-    expect(config.replace_generic).toBe(false);
+    expect(config.replace_generic).toBe(true);
   });
 
   it("returns default config when generic_return is not string", async () => {
@@ -117,6 +117,6 @@ describe("loadConfig", () => {
       JSON.stringify({ replace_generic: true, generic_return: 123 })
     );
     const config = await loadConfig();
-    expect(config.replace_generic).toBe(false);
+    expect(config.replace_generic).toBe(true);
   });
 });
