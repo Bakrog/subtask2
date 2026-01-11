@@ -42,7 +42,7 @@ Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` fea
 
 ### 1. `return` - Or the old 'look again' trick
 
-Use `return` to tell the main agent what to do after a command completes, supports chaining and triggering other commands. The `return` prompt is appended to the main session on command or subtask completion.
+Use `return` to tell the main agent what to do after a command completes, supports /commands and chaining.
 
 ```yaml
 subtask: true
@@ -62,7 +62,7 @@ return:
 Find the bug in auth.ts
 ```
 
-**Trigger /commands in return** using `/command args` syntax:
+**Trigger /commands in return**
 
 ```yaml
 subtask: true
@@ -74,13 +74,9 @@ return:
 Design the auth system for $ARGUMENTS
 ```
 
-By default, opencode injects a user message after a `subtask: true` completes, asking the model to "summarize the task tool output..." - Subtask2 replaces that message with the `return` prompt
+By default, opencode injects a hidden user message after a `subtask: true` completes, asking the model to "summarize the task tool output..." - Subtask2 replaces it with the first `return` prompt, or suppresses it if the first `return` is a `/command`.
 
-- **First** `return` replaces opencode's "summarize" message or fires as a follow-up
-- **Any additional** `return` fire sequentially after each LLM turn completes - _accepts /commands_
-- **Commands** (starting with `/`) are executed as full commands with their own `parallel` and `return`
-
-**Note:** The first `return` of a `subtask: true` command cannot be a slash command as it substitutes the opencode injected message (as a string)
+`/commands` are executed as full commands with their own `parallel` and `return`
 
 ### 2. `{model:...}` - Inline model override ⚠️ **PENDING PR**
 

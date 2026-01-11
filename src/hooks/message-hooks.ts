@@ -94,11 +94,14 @@ export async function chatMessagesTransform(input: any, output: any) {
 
   // Find the LAST message with OPENCODE_GENERIC
   let lastGenericPart: any = null;
+  let lastGenericMsgIndex: number = -1;
 
-  for (const msg of output.messages) {
+  for (let i = 0; i < output.messages.length; i++) {
+    const msg = output.messages[i];
     for (const part of msg.parts) {
       if (part.type === "text" && part.text === OPENCODE_GENERIC) {
         lastGenericPart = part;
+        lastGenericMsgIndex = i;
       }
     }
   }
@@ -138,8 +141,14 @@ export async function chatMessagesTransform(input: any, output: any) {
       deletePendingReturn(sessionID);
       setHasActiveSubtask(false);
       if (returnPrompt.startsWith("/")) {
-        // Command return: clear text and execute command
-        lastGenericPart.text = "";
+        // Command return: remove the summarize message entirely from history
+        // and fire the command immediately at this moment
+        if (lastGenericMsgIndex >= 0) {
+          output.messages.splice(lastGenericMsgIndex, 1);
+          log(
+            `Removed summarize message at index ${lastGenericMsgIndex} for command return`
+          );
+        }
         executeReturn(returnPrompt, sessionID).catch(console.error);
       } else {
         // Plain prompt return: replace generic message with the prompt text
