@@ -8,6 +8,7 @@ import {
   addProcessedS2Message,
   OPENCODE_GENERIC,
   getConfigs,
+  getClient,
 } from "../core/state";
 import { log } from "../utils/logger";
 import { DEFAULT_PROMPT } from "../utils/config";
@@ -20,6 +21,91 @@ import {
   createEvaluationPrompt,
   createYieldPrompt,
 } from "../loop";
+
+/**
+ * Update the synthetic part in the database to make it visible in TUI.
+ * Uses the SDK client's internal HTTP mechanism since raw fetch doesn't work in plugin env.
+ */
+async function makePartVisible(
+  part: any,
+  msg: any,
+  newText: string
+): Promise<void> {
+  const client = getClient();
+  if (!client) {
+    log(`makePartVisible: no client available`);
+    return;
+  }
+
+  // Extract IDs from the part and message
+  const partID = part.id;
+  const messageID = part.messageID || msg?.info?.id;
+  const sessionID = part.sessionID || msg?.info?.sessionID;
+
+  if (!partID || !messageID || !sessionID) {
+    log(
+      `makePartVisible: missing IDs - partID=${partID}, messageID=${messageID}, sessionID=${sessionID}`
+    );
+    return;
+  }
+
+  log(
+    `makePartVisible: updating part ${partID} in DB to be visible with text: "${newText.substring(0, 50)}..."`
+  );
+
+  // Try multiple approaches to access the SDK's HTTP client
+  try {
+    // Approach 1: Try client.part.update if it exists
+    if (client.part?.update) {
+      await client.part.update({
+        sessionID,
+        messageID,
+        partID,
+        part: {
+          id: partID,
+          messageID,
+          sessionID,
+          type: "text",
+          text: newText,
+        },
+      });
+      log(`makePartVisible: successfully updated via client.part.update`);
+      return;
+    }
+
+    // Approach 2: Try to access the internal HTTP client
+    // The SDK classes have `this.client` which is the hey-api HTTP client
+    const httpClient = (client as any).client || (client as any)._client;
+    if (httpClient?.patch) {
+      await httpClient.patch({
+        url: `/session/${sessionID}/message/${messageID}/part/${partID}`,
+        body: {
+          id: partID,
+          messageID,
+          sessionID,
+          type: "text",
+          text: newText,
+        },
+      });
+      log(`makePartVisible: successfully updated via internal HTTP client`);
+      return;
+    }
+
+    // Approach 3: Log what's available on the client for debugging
+    log(
+      `makePartVisible: client structure - keys: ${Object.keys(client).join(", ")}`
+    );
+    if ((client as any).session) {
+      log(
+        `makePartVisible: session keys: ${Object.keys((client as any).session).join(", ")}`
+      );
+    }
+
+    log(`makePartVisible: no suitable HTTP method found on client`);
+  } catch (e) {
+    log(`makePartVisible: failed to update part: ${e}`);
+  }
+}
 
 /**
  * Hook: experimental.chat.messages.transform
@@ -94,6 +180,7 @@ export async function chatMessagesTransform(input: any, output: any) {
 
   // Find the LAST message with OPENCODE_GENERIC
   let lastGenericPart: any = null;
+  let lastGenericMsg: any = null;
   let lastGenericMsgIndex: number = -1;
 
   for (let i = 0; i < output.messages.length; i++) {
@@ -101,6 +188,7 @@ export async function chatMessagesTransform(input: any, output: any) {
     for (const part of msg.parts) {
       if (part.type === "text" && part.text === OPENCODE_GENERIC) {
         lastGenericPart = part;
+        lastGenericMsg = msg;
         lastGenericMsgIndex = i;
       }
     }
@@ -151,9 +239,19 @@ export async function chatMessagesTransform(input: any, output: any) {
         }
         executeReturn(returnPrompt, sessionID).catch(console.error);
       } else {
-        // Plain prompt return: replace generic message with the prompt text
-        // This becomes the assistant's message - no LLM call needed
+        // Plain prompt return: replace the text in transform (for LLM)
+        // AND update the DB to remove synthetic flag (for TUI visibility)
         lastGenericPart.text = returnPrompt;
+        delete (lastGenericPart as Record<string, unknown>).synthetic;
+
+        // Also update the DB to make the message visible in TUI
+        makePartVisible(lastGenericPart, lastGenericMsg, returnPrompt).catch(
+          console.error
+        );
+
+        log(
+          `Replaced summarize message with visible return prompt: "${returnPrompt.substring(0, 50)}..."`
+        );
       }
       return;
     }

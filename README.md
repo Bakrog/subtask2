@@ -74,7 +74,14 @@ return:
 Design the auth system for $ARGUMENTS
 ```
 
-By default, opencode injects a hidden user message after a `subtask: true` completes, asking the model to "summarize the task tool output..." - Subtask2 replaces it with the first `return` prompt, or suppresses it if the first `return` is a `/command`.
+**How return prompts work:**
+
+When a `subtask: true` completes, OpenCode normally injects a hidden synthetic user message asking the model to "summarize the task tool output..." - Subtask2 completely suppresses this message and handles returns differently:
+
+- **Prompt returns**: Fired as **real user messages** visible in your conversation. You'll see the return prompt appear as if you typed it.
+- **Command returns** (starting with `/`): The command executes immediately without any visible message.
+
+This gives you full visibility into what's driving the agent's next action.
 
 `/commands` are executed as full commands with their own `parallel` and `return`
 
@@ -351,9 +358,20 @@ return:
 3. When processing return prompts, `$RESULT[name]` is replaced with the captured output
 4. If a result isn't found, it's replaced with `[Result 'name' not found]`
 
-### 5. Subtask `return` fallback and custom defaults
+### 5. Suppressing OpenCode's generic message
 
-For `subtask: true` commands, this plugin replaces the opencode generic "summarize" message with the `return` prompt. If undefined and `"replace_generic": true`, subtask2 uses:
+When a `subtask: true` command completes, OpenCode injects a synthetic user message asking the model to "summarize the task tool output..." This message is hidden from the user but visible to the model.
+
+**Subtask2 completely removes this message from the conversation history**, whether or not you define a `return` prompt. This prevents the generic summarization behavior and gives you full control over what happens next.
+
+**When `return` is defined:**
+
+- The synthetic message is removed from history
+- For prompt returns: a **real user message** (visible to you) is sent with the return prompt
+- For `/command` returns: the command executes immediately
+
+**When `return` is not defined:**
+If `replace_generic` is enabled (default), subtask2 still removes the synthetic message and fires a fallback prompt:
 
 > Review, challenge and validate the task output against the codebase then continue with the next logical step.
 
