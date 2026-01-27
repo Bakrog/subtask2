@@ -12,7 +12,7 @@ import { flattenParallels } from "./parallel";
 
 /**
  * Feature: Inline subtask execution
- * Executes /s2{...} and /{...} inline subtasks without command files
+ * Executes /subtask {...} inline subtasks without command files
  */
 
 /**

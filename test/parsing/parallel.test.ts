@@ -67,14 +67,14 @@ describe("parseParallelItem", () => {
   });
 
   it("parses command with model override", () => {
-    const result = parseParallelItem("/plan{model:openai/gpt-4o} design auth");
+    const result = parseParallelItem("/plan {model:openai/gpt-4o} design auth");
     expect(result?.command).toBe("plan");
     expect(result?.arguments).toBe("design auth");
     expect(result?.model).toBe("openai/gpt-4o");
   });
 
   it("parses command with loop override", () => {
-    const result = parseParallelItem("/test{loop:5} run suite");
+    const result = parseParallelItem("/test {loop:5} run suite");
     expect(result?.command).toBe("test");
     expect(result?.loop).toEqual({ max: 5, until: "" });
   });

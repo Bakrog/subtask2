@@ -26,10 +26,10 @@ Focus: **Real features claimed in README** - not internal logic that's obviously
 
 **What it does:** Override model/agent for any command invocation inline.
 
-- [ ] **2.1** `/cmd{model:provider/name} args` → Model override parsed and applied to subtask
-- [ ] **2.2** `/cmd{agent:agentname} args` → Agent override parsed and applied
+- [ ] **2.1** `/cmd {model:provider/name} args` → Model override parsed and applied to subtask
+- [ ] **2.2** `/cmd {agent:agentname} args` → Agent override parsed and applied
 - [ ] **2.3** Combined `{model:x && agent:y}` → Both overrides applied
-- [ ] **2.4** Override in return chain `/cmd{model:x}` → Override applied to chained command
+- [ ] **2.4** Override in return chain `/cmd {model:x}` → Override applied to chained command
 - [ ] **2.5** Override priority: inline vs frontmatter → Inline wins over frontmatter
 
 ---
@@ -76,7 +76,7 @@ Focus: **Real features claimed in README** - not internal logic that's obviously
 - [ ] **5.1** `parallel: [/cmd1, /cmd2]` frontmatter → All 3 run (main + 2 parallel)
 - [ ] **5.2** `parallel: /cmd1, /cmd2` string syntax → Comma-separated parsed correctly
 - [ ] **5.3** `parallel: [{command: x, arguments: y}]` → Object syntax with custom args
-- [ ] **5.4** `/cmd{parallel:/a || /b}` inline override → Parallel parsed from inline
+- [ ] **5.4** `/cmd {parallel:/a || /b}` inline override → Parallel parsed from inline
 - [ ] **5.5** Piped args `||` to parallel commands → `/cmd main || arg1 || arg2` maps correctly
 - [ ] **5.6** Parallel commands inherit main $ARGUMENTS → When no custom args specified
 - [ ] **5.7** Parallel commands forced to subtask → Regardless of their own `subtask:` setting

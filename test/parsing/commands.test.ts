@@ -20,7 +20,7 @@ describe("parseCommandWithOverrides", () => {
 
   it("parses command with model override", () => {
     const result = parseCommandWithOverrides(
-      "/plan{model:openai/gpt-4o} design auth"
+      "/plan {model:openai/gpt-4o} design auth"
     );
     expect(result.command).toBe("plan");
     expect(result.arguments).toBe("design auth");
@@ -29,27 +29,27 @@ describe("parseCommandWithOverrides", () => {
 
   it("parses command with agent override", () => {
     const result = parseCommandWithOverrides(
-      "/research{agent:explore} find patterns"
+      "/research {agent:explore} find patterns"
     );
     expect(result.command).toBe("research");
     expect(result.overrides.agent).toBe("explore");
   });
 
   it("parses command with loop override", () => {
-    const result = parseCommandWithOverrides("/fix-tests{loop:5} run suite");
+    const result = parseCommandWithOverrides("/fix-tests {loop:5} run suite");
     expect(result.overrides.loop).toEqual({ max: 5, until: "" });
   });
 
   it("parses command with loop and until", () => {
     const result = parseCommandWithOverrides(
-      "/fix-tests{loop:10 && until:all tests pass} fix bugs"
+      "/fix-tests {loop:10 && until:all tests pass} fix bugs"
     );
     expect(result.overrides.loop).toEqual({ max: 10, until: "all tests pass" });
   });
 
   it("parses command with multiple overrides", () => {
     const result = parseCommandWithOverrides(
-      "/impl{model:anthropic/claude-sonnet-4 && agent:build} implement feature"
+      "/impl {model:anthropic/claude-sonnet-4 && agent:build} implement feature"
     );
     expect(result.overrides.model).toBe("anthropic/claude-sonnet-4");
     expect(result.overrides.agent).toBe("build");
@@ -57,7 +57,7 @@ describe("parseCommandWithOverrides", () => {
 
   it("parses inline subtask syntax", () => {
     const result = parseCommandWithOverrides(
-      "/subtask{model:openai/gpt-4o && return:validate || test} implement auth"
+      "/subtask {model:openai/gpt-4o && return:validate || test} implement auth"
     );
     expect(result.isInlineSubtask).toBe(true);
     expect(result.command).toBe("");
@@ -67,7 +67,7 @@ describe("parseCommandWithOverrides", () => {
   });
 
   it("handles case-insensitive /subtask", () => {
-    const result = parseCommandWithOverrides("/SUBTASK{agent:build} do thing");
+    const result = parseCommandWithOverrides("/SUBTASK {agent:build} do thing");
     expect(result.isInlineSubtask).toBe(true);
   });
 
@@ -96,7 +96,7 @@ describe("parseCommandWithOverrides", () => {
   });
 
   it("handles empty arguments", () => {
-    const result = parseCommandWithOverrides("/cmd{model:x}");
+    const result = parseCommandWithOverrides("/cmd {model:x}");
     expect(result.command).toBe("cmd");
     expect(result.arguments).toBeUndefined();
   });
@@ -130,7 +130,7 @@ describe("parseCommandWithOverrides", () => {
 
   it("parses complex inline subtask with all params", () => {
     const result = parseCommandWithOverrides(
-      "/subtask{model:openai/gpt-4o && agent:build && loop:5 && until:done && return:step1 || step2 || step3} do the work"
+      "/subtask {model:openai/gpt-4o && agent:build && loop:5 && until:done && return:step1 || step2 || step3} do the work"
     );
     expect(result.isInlineSubtask).toBe(true);
     expect(result.overrides.model).toBe("openai/gpt-4o");

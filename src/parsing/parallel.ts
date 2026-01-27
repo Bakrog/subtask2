@@ -26,12 +26,12 @@ export function parseLoopConfig(loop: unknown): LoopConfig | undefined {
   return undefined;
 }
 
-// Parse a parallel item - handles "/cmd{model:...} args" syntax, plain "cmd", or {command, arguments} object
+// Parse a parallel item - handles "/cmd {model:...} args" syntax, plain "cmd", or {command, arguments} object
 export function parseParallelItem(p: unknown): ParallelCommand | null {
   if (typeof p === "string") {
     const trimmed = p.trim();
     if (trimmed.startsWith("/")) {
-      // Parse /command{overrides} args syntax
+      // Parse /command {overrides} args syntax
       const parsed = parseCommandWithOverrides(trimmed);
       return {
         command: parsed.command,

@@ -152,13 +152,13 @@ describe("parseOverridesString", () => {
 describe("parseAutoWorkflowOutput", () => {
   it('parses <subtask2 auto="true"> tag with /subtask command', () => {
     const text = `Some reasoning here...
-<subtask2 auto="true">
-/subtask{model:openai/gpt-4o && return:validate || test} implement the feature
+ <subtask2 auto="true">
+ /subtask {model:openai/gpt-4o && return:validate || test} implement the feature
 </subtask2>`;
     const result = parseAutoWorkflowOutput(text);
     expect(result.found).toBe(true);
     expect(result.command).toBe(
-      "/subtask{model:openai/gpt-4o && return:validate || test} implement the feature"
+      "/subtask {model:openai/gpt-4o && return:validate || test} implement the feature"
     );
   });
 
@@ -177,10 +177,10 @@ some other command
 
   it("handles single quotes in attribute", () => {
     const text = `<subtask2 auto='true'>
-/subtask{agent:build} do something
+ /subtask {agent:build} do something
 </subtask2>`;
     const result = parseAutoWorkflowOutput(text);
     expect(result.found).toBe(true);
-    expect(result.command).toBe("/subtask{agent:build} do something");
+    expect(result.command).toBe("/subtask {agent:build} do something");
   });
 });

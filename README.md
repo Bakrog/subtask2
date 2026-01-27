@@ -87,16 +87,16 @@ This gives you full visibility into what's driving the agent's next action.
 
 ### 2. `{model:...}` - Inline model override ⚠️ **PENDING PR**
 
-Override the model for any command invocation without modifying the command file. Attach the override directly to the command name with no space:
+Override the model for any command invocation without modifying the command file. Place overrides after the command with a space:
 
 ```bash
-/plan{model:anthropic/claude-sonnet-4} design auth system
+/plan {model:anthropic/claude-sonnet-4} design auth system
 ```
 
 ```yaml
 return:
-  - /plan{model:github-copilot/claude-sonnet-4.5}
-  - /plan{model:openai/gpt-5.2}
+  - /plan {model:github-copilot/claude-sonnet-4.5}
+  - /plan {model:openai/gpt-5.2}
   - Compare both plans and pick the best approach
 ```
 
@@ -107,16 +107,16 @@ This lets you reuse a single command template with different models - no need to
 Override the agent for any command invocation:
 
 ```bash
-/research{agent:explore} find auth patterns
+/research {agent:explore} find auth patterns
 ```
 
 ```yaml
 return:
-  - /implement{agent:build}
-  - /review{agent:plan}
+  - /implement {agent:build}
+  - /review {agent:plan}
 ```
 
-**Syntax:** `{agent:agent-name}` - can be combined with other overrides using `&&`.
+**Syntax:** `/command {agent:agent-name}` - can be combined with other overrides using `&&`.
 
 ### 2c. `/subtask {...} prompt` - Inline subtasks
 

@@ -8,10 +8,10 @@ export interface ParsedCommand {
 }
 
 /**
- * Parse a command string with optional overrides: /cmd{model:provider/model-id} args
+ * Parse a command string with optional overrides: /cmd {model:provider/model-id} args
  * Also supports inline subtask syntax: /subtask {loop:5,until:condition} prompt text
- * Syntax: /command{key:value,key2:value2} arguments
- * No space between command and {overrides}
+ * Syntax: /command {key:value,key2:value2} arguments
+ * (No-space form is also supported for compatibility.)
  */
 export function parseCommandWithOverrides(input: string): ParsedCommand {
   const trimmed = input.trim();
@@ -21,23 +21,24 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
   }
 
   // Check for inline subtask syntax: /subtask {...} prompt (case-insensitive)
-  const inlineMatch = trimmed.match(
-    /^\/[sS][uU][bB][tT][aA][sS][kK]\{([^}]+)\}\s+(.+)$/s
-  );
-  if (inlineMatch) {
-    const [, overridesStr, prompt] = inlineMatch;
-    const overrides = parseOverridesString(overridesStr);
-    return {
-      command: "", // No command - inline prompt
-      arguments: prompt,
-      overrides,
-      isInlineSubtask: true,
-    };
+  const subtaskMatch = trimmed.match(/^\/[sS][uU][bB][tT][aA][sS][kK]\b/s);
+  if (subtaskMatch) {
+    const rest = trimmed.slice(subtaskMatch[0].length).trimStart();
+    if (rest.startsWith("{")) {
+      const inlineParsed = parseInlineSubtask(rest);
+      if (inlineParsed) {
+        return {
+          command: "", // No command - inline prompt
+          arguments: inlineParsed.prompt,
+          overrides: inlineParsed.overrides,
+          isInlineSubtask: true,
+        };
+      }
+    }
   }
 
-  // Match: /command{...} or /command
-  // Pattern: /commandName{overrides} rest
-  const match = trimmed.match(/^\/([a-zA-Z0-9_\-\/]+)(\{([^}]+)\})?\s*(.*)$/s);
+  // Match: /command {overrides} or /command
+  const match = trimmed.match(/^\/([a-zA-Z0-9_\-\/]+)(.*)$/s);
 
   if (!match) {
     // Fallback: just split on first space
@@ -49,8 +50,19 @@ export function parseCommandWithOverrides(input: string): ParsedCommand {
     };
   }
 
-  const [, commandName, , overridesStr, args] = match;
-  const overrides = overridesStr ? parseOverridesString(overridesStr) : {};
+  const [, commandName, rawRest] = match;
+  const rest = rawRest || "";
+  const trimmedRest = rest.trimStart();
+  let overrides: CommandOverrides = {};
+  let args = trimmedRest;
+
+  if (trimmedRest.startsWith("{")) {
+    const extracted = extractOverrideBlock(trimmedRest);
+    if (extracted) {
+      overrides = parseOverridesString(extracted.overrideStr);
+      args = extracted.rest.trimStart();
+    }
+  }
 
   return {
     command: commandName,
@@ -75,13 +87,32 @@ export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
   // Must start with {
   if (!trimmed.startsWith("{")) return null;
 
+  const extracted = extractOverrideBlock(trimmed);
+  if (!extracted) return null;
+
+  const overrideStr = extracted.overrideStr;
+  const prompt = extracted.rest.trim();
+
+  if (!prompt) return null;
+
+  // Reuse centralized override parsing logic
+  const overrides = parseOverridesString(overrideStr);
+
+  return { prompt, overrides };
+}
+
+function extractOverrideBlock(
+  input: string
+): { overrideStr: string; rest: string } | null {
+  if (!input.startsWith("{")) return null;
+
   // Find matching closing brace (handle nested braces)
   let depth = 0;
   let braceEnd = -1;
-  for (let i = 0; i < trimmed.length; i++) {
-    if (trimmed[i] === "{") {
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === "{") {
       depth++;
-    } else if (trimmed[i] === "}") {
+    } else if (input[i] === "}") {
       depth--;
       if (depth === 0) {
         braceEnd = i;
@@ -92,15 +123,9 @@ export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
 
   if (braceEnd === -1) return null;
 
-  const overrideStr = trimmed.substring(1, braceEnd);
-  const prompt = trimmed.substring(braceEnd + 1).trim();
-
-  if (!prompt) return null;
-
-  // Reuse centralized override parsing logic
-  const overrides = parseOverridesString(overrideStr);
-
-  return { prompt, overrides };
+  const overrideStr = input.substring(1, braceEnd);
+  const rest = input.substring(braceEnd + 1);
+  return { overrideStr, rest };
 }
 
 // Re-export CommandOverrides for convenience

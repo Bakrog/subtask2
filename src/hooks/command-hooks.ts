@@ -134,7 +134,7 @@ export async function commandExecuteBefore(
   let modelOverride = getPendingModelOverride(input.sessionID);
   let retryOverride: LoopConfig | undefined;
 
-  // Parse inline override from arguments if present (for direct /cmd{model:...,retry:...} invocation)
+  // Parse inline override from arguments if present (for direct /cmd {model:...,retry:...} invocation)
   const inlineMatch = effectiveArgs.match(/^\{([^}]+)\}\s*/);
   if (inlineMatch) {
     effectiveArgs = effectiveArgs.slice(inlineMatch[0].length);
