@@ -1,4 +1,3 @@
-import type { LoopConfig } from "../types";
 import {
   getConfigs,
   setSessionMainCommand,
@@ -6,12 +5,16 @@ import {
   setPendingNonSubtaskReturns,
   getPendingModelOverride,
   deletePendingModelOverride,
+  getPendingAgentOverride,
+  deletePendingAgentOverride,
   registerPendingParentForPrompt,
+  registerPendingResultCaptureByPrompt,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
 import {
   hasTurnReferences,
+  parseOverridesFromArgs,
   parseInlineSubtask,
   type CommandOverrides,
 } from "../parsing";
@@ -105,7 +108,7 @@ export async function commandExecuteBefore(
       : "no config"
   );
 
-  // CHECK FOR AUTO MODE FIRST - intercepts command and generates workflow dynamically
+  // CHECK FOR AUTO MODE FIRST (POC) - intercepts command and generates workflow dynamically
   if (config?.auto) {
     log(`command.execute.before: detected subtask2:auto for ${cmd}`);
 
@@ -131,32 +134,31 @@ export async function commandExecuteBefore(
   // Check for model override: from pendingModelOverride (set by executeReturn)
   // or from inline syntax in arguments: {model:provider/id} at start
   let effectiveArgs = input.arguments;
-  let modelOverride = getPendingModelOverride(input.sessionID);
-  let retryOverride: LoopConfig | undefined;
-
-  // Parse inline override from arguments if present (for direct /cmd {model:...,retry:...} invocation)
-  const inlineMatch = effectiveArgs.match(/^\{([^}]+)\}\s*/);
-  if (inlineMatch) {
-    effectiveArgs = effectiveArgs.slice(inlineMatch[0].length);
-    const modelMatch = inlineMatch[1].match(/model:([^,}]+)/);
-    if (modelMatch) modelOverride = modelMatch[1].trim();
-
-    // Parse retry inline
-    const retryMatch = inlineMatch[1].match(/retry:(\d+)/);
-    const untilMatch = inlineMatch[1].match(/until:([^,}]+)/);
-    if (retryMatch && untilMatch) {
-      retryOverride = {
-        max: parseInt(retryMatch[1], 10),
-        until: untilMatch[1].trim(),
-      };
-    }
+  const inlineOverrides = parseOverridesFromArgs(effectiveArgs);
+  if (inlineOverrides) {
+    effectiveArgs = inlineOverrides.rest;
   }
+
+  const pendingModel = getPendingModelOverride(input.sessionID);
+  const pendingAgent = getPendingAgentOverride(input.sessionID);
+  const modelOverride = inlineOverrides?.overrides.model ?? pendingModel;
+  const agentOverride = inlineOverrides?.overrides.agent ?? pendingAgent;
+
+  if (pendingModel) deletePendingModelOverride(input.sessionID);
+  if (pendingAgent) deletePendingAgentOverride(input.sessionID);
 
   // Check for retry config: inline > frontmatter
   const fmRetry = config?.loop;
-  const activeRetry = retryOverride || fmRetry;
+  const activeRetry = inlineOverrides?.overrides.loop || fmRetry;
   if (activeRetry && !getLoopState(input.sessionID)) {
-    startLoop(input.sessionID, activeRetry, cmd, effectiveArgs);
+    startLoop(
+      input.sessionID,
+      activeRetry,
+      cmd,
+      effectiveArgs,
+      modelOverride,
+      agentOverride
+    );
     log(
       `cmd.before: started retry loop: max=${activeRetry.max}, until="${activeRetry.until}"`
     );
@@ -167,7 +169,6 @@ export async function commandExecuteBefore(
 
   // Apply model override to subtask parts
   if (modelOverride) {
-    deletePendingModelOverride(input.sessionID);
     if (modelOverride.includes("/")) {
       const [providerID, ...rest] = modelOverride.split("/");
       for (const part of output.parts) {
@@ -177,6 +178,15 @@ export async function commandExecuteBefore(
       }
       log(`cmd.before: applied model override: ${modelOverride}`);
     }
+  }
+
+  if (agentOverride) {
+    for (const part of output.parts) {
+      if (part.type === "subtask") {
+        part.agent = agentOverride;
+      }
+    }
+    log(`cmd.before: applied agent override: ${agentOverride}`);
   }
 
   // Parse pipe-separated arguments: main || arg1 || arg2 || arg3 ...
@@ -227,7 +237,7 @@ export async function commandExecuteBefore(
   }
 
   // Fix main command's parts to use only mainArgs (not the full pipe string)
-  if (argSegments.length > 1) {
+  if (argSegments.length > 1 || inlineOverrides) {
     for (const part of output.parts) {
       if (part.type === "subtask" && part.prompt) {
         part.prompt = part.prompt.replaceAll(input.arguments, mainArgs);
@@ -251,6 +261,13 @@ export async function commandExecuteBefore(
       log(
         `cmd.before: registered parent for prompt (${part.prompt.length} chars)`
       );
+      if ((part as any).as) {
+        registerPendingResultCaptureByPrompt(
+          part.prompt,
+          input.sessionID,
+          (part as any).as
+        );
+      }
     }
   }
 

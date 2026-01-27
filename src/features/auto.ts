@@ -7,8 +7,9 @@ import { log } from "../utils/logger";
 import { getAutoWorkflowPrompt } from "../utils/prompts";
 
 /**
- * Execute a subtask2: auto workflow
+ * Execute a subtask2: auto workflow (POC)
  *
+ * This is experimental and not a supported feature yet.
  * 1. Spawns subtask with auto prompt + user arguments
  * 2. Sets up return to parse and execute the generated workflow
  */

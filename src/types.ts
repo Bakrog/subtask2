@@ -6,9 +6,12 @@ export interface LoopConfig {
 export interface ParallelCommand {
   command: string;
   arguments?: string;
+  prompt?: string;
   model?: string; // Override model: "provider/model-id"
+  agent?: string;
   loop?: LoopConfig; // Retry until completion
   as?: string; // Named result identifier for $RESULT[name] references
+  inline?: boolean;
 }
 
 export interface CommandConfig {

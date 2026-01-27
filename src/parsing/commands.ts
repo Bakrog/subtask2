@@ -76,6 +76,11 @@ export interface ParsedInlineSubtask {
   overrides: CommandOverrides;
 }
 
+export interface ParsedArgsWithOverrides {
+  overrides: CommandOverrides;
+  rest: string;
+}
+
 /**
  * Parse /subtask {...} prompt inline subtask syntax
  * Input should NOT include the /subtask prefix
@@ -99,6 +104,23 @@ export function parseInlineSubtask(input: string): ParsedInlineSubtask | null {
   const overrides = parseOverridesString(overrideStr);
 
   return { prompt, overrides };
+}
+
+/**
+ * Parse a leading override block from arguments ("{...} rest")
+ */
+export function parseOverridesFromArgs(
+  input: string
+): ParsedArgsWithOverrides | null {
+  const trimmed = input.trimStart();
+  if (!trimmed.startsWith("{")) return null;
+
+  const extracted = extractOverrideBlock(trimmed);
+  if (!extracted) return null;
+
+  const overrides = parseOverridesString(extracted.overrideStr);
+  const rest = extracted.rest.trimStart();
+  return { overrides, rest };
 }
 
 function extractOverrideBlock(

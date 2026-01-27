@@ -9,6 +9,8 @@ import {
   resolveResultReferences,
   consumePendingMainSessionCapture,
   captureSubtaskResult,
+  storeSubtaskResult,
+  consumeDeferredReturnPrompt,
 } from "../core/state";
 import { log } from "../utils/logger";
 import { executeReturn } from "../features/returns";
@@ -41,7 +43,7 @@ export async function handleSessionIdle(sessionID: string) {
       });
       // Get last assistant message
       const assistantMsgs = messages.data?.filter(
-        (m: any) => m.role === "assistant"
+        (m: any) => (m.info?.role ?? m.role) === "assistant"
       );
       const lastMsg = assistantMsgs?.[assistantMsgs.length - 1];
       const resultText =
@@ -51,7 +53,7 @@ export async function handleSessionIdle(sessionID: string) {
           ?.join("\n") || "";
 
       if (resultText) {
-        captureSubtaskResult(sessionID, resultText);
+        storeSubtaskResult(sessionID, pendingCaptureName, resultText);
         log(
           `session.idle: captured main session result for "${pendingCaptureName}" (${resultText.length} chars)`
         );
@@ -139,6 +141,16 @@ export async function handleSessionIdle(sessionID: string) {
       log(`loop: breaking loop, condition satisfied`);
       clearLoop(sessionID);
     }
+  }
+
+  const deferredReturn = consumeDeferredReturnPrompt(sessionID);
+  if (deferredReturn) {
+    const resolved = resolveResultReferences(deferredReturn, sessionID);
+    log(
+      `session.idle: executing deferred return: "${resolved.substring(0, 40)}..."`
+    );
+    executeReturn(resolved, sessionID).catch(console.error);
+    return;
   }
 
   // Handle non-subtask command returns

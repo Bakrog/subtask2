@@ -40,6 +40,31 @@ export async function flattenParallels(
   for (let i = 0; i < parallels.length; i++) {
     const parallelCmd = parallels[i];
 
+    if (parallelCmd.inline) {
+      let prompt = parallelCmd.prompt ?? parallelCmd.arguments ?? "";
+      if (hasTurnReferences(prompt)) {
+        prompt = await resolveTurnReferences(prompt, sessionID);
+      }
+
+      let model: { providerID: string; modelID: string } | undefined;
+      const modelStr = parallelCmd.model;
+      if (modelStr && modelStr.includes("/")) {
+        const [providerID, ...rest] = modelStr.split("/");
+        model = { providerID, modelID: rest.join("/") };
+      }
+
+      parts.push({
+        type: "subtask" as const,
+        agent: parallelCmd.agent || "build",
+        model,
+        description: "Inline parallel subtask",
+        command: "_inline_subtask_",
+        prompt,
+        as: parallelCmd.as,
+      });
+      continue;
+    }
+
     // Mark command as visited BEFORE loading to prevent its nested parallels
     // from re-adding the same command. This prevents self-referential parallels
     // (e.g., /parallel.md has parallel: [/parallel, /parallel]) from duplicating.
@@ -80,7 +105,7 @@ export async function flattenParallels(
 
     parts.push({
       type: "subtask" as const,
-      agent: (fm.agent as string) || "general",
+      agent: parallelCmd.agent || (fm.agent as string) || "general",
       model,
       description:
         (fm.description as string) || `Parallel: ${parallelCmd.command}`,
@@ -97,7 +122,7 @@ export async function flattenParallels(
       if (nestedArr.length) {
         // Filter out commands already in visited (cycle detection)
         const filteredNested = nestedArr.filter(nested => {
-          if (visited.has(nested.command)) {
+          if (!nested.inline && visited.has(nested.command)) {
             log(`Skipping nested parallel ${nested.command}: already visited`);
             return false;
           }

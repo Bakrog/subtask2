@@ -21,6 +21,7 @@ import {
   getPendingResultCapture,
   captureSubtaskResult,
   getClient,
+  setDeferredReturnPrompt,
 } from "../core/state";
 import { getConfig } from "../commands/resolver";
 import { log } from "../utils/logger";
@@ -177,7 +178,9 @@ export async function toolExecuteAfter(input: any, output: any) {
   const isFrontmatterLoop =
     retryLoop && retryLoop.commandName !== "_inline_subtask_";
 
-  if (!cmd && !isInlineLoopIteration && !isFrontmatterLoop) {
+  const pendingCapture = getPendingResultCapture(input.sessionID);
+
+  if (!cmd && !isInlineLoopIteration && !isFrontmatterLoop && !pendingCapture) {
     // Already processed or not our command (and not a loop iteration)
     return;
   }
@@ -190,7 +193,6 @@ export async function toolExecuteAfter(input: any, output: any) {
   }
 
   // Capture result if this subtask has an `as:` name
-  const pendingCapture = getPendingResultCapture(input.sessionID);
   if (pendingCapture) {
     try {
       const client = getClient();
@@ -199,7 +201,7 @@ export async function toolExecuteAfter(input: any, output: any) {
       });
       // Get last assistant message text
       const assistantMsgs = messages.data?.filter(
-        (m: any) => m.role === "assistant"
+        (m: any) => (m.info?.role ?? m.role) === "assistant"
       );
       const lastMsg = assistantMsgs?.[assistantMsgs.length - 1];
       const resultText =
@@ -224,6 +226,10 @@ export async function toolExecuteAfter(input: any, output: any) {
     getSessionMainCommand(input.sessionID);
   const configs = getConfigs();
   const cmdConfig = cmd ? getConfig(configs, cmd) : undefined;
+  const loopCommandName = cmd || mainCmd;
+  const loopCommandConfig = loopCommandName
+    ? getConfig(configs, loopCommandName)
+    : undefined;
 
   log(
     `tool.after: cmd=${cmd}, mainCmd=${mainCmd}, isMain=${
@@ -260,21 +266,20 @@ export async function toolExecuteAfter(input: any, output: any) {
     }
   }
 
-  // For inline loops, set pendingReturn on the parent session for evaluation
+  // For inline loops, set pendingReturn on the parent session after loop completes
   const returnSession = isInlineLoopIteration ? loopSession : input.sessionID;
+  const firstReturn = loopCommandConfig?.return?.[0];
 
-  if (cmd && cmd === mainCmd && cmdConfig?.return?.length) {
+  if (firstReturn && isLoopIteration) {
+    setDeferredReturnPrompt(returnSession, firstReturn);
+    log(`Deferred return prompt until loop completes`);
+  } else if (cmd && cmd === mainCmd && firstReturn) {
     // Only set pendingReturn if we haven't already (dedup check)
     if (!hasPendingReturn(returnSession)) {
-      log(`Setting pendingReturn: ${cmdConfig.return[0].substring(0, 50)}...`);
-      setPendingReturn(returnSession, cmdConfig.return[0]);
+      log(`Setting pendingReturn: ${firstReturn.substring(0, 50)}...`);
+      setPendingReturn(returnSession, firstReturn);
     } else {
       log(`Skipping duplicate main command - pendingReturn already set`);
-      // Clear any loop state that may have been set by the duplicate
-      if (retryLoop) {
-        clearLoop(loopSession);
-        clearPendingEvaluation(loopSession);
-      }
     }
   } else if (cmd && cmd !== mainCmd) {
     log(`task.after: ${cmd} (parallel of ${mainCmd})`);

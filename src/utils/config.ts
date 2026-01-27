@@ -70,7 +70,8 @@ export async function loadConfig(): Promise<Subtask2Config> {
       const text = await file.text();
       const stripped = text
         .replace(/\/\/.*$/gm, "")
-        .replace(/\/\*[\s\S]*?\*\//g, "");
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/,\s*([}\]])/g, "$1");
       const parsed = JSON.parse(stripped);
       if (isValidConfig(parsed)) {
         return parsed;
@@ -82,7 +83,7 @@ export async function loadConfig(): Promise<Subtask2Config> {
     CONFIG_PATH,
     `{
   // Replace OpenCode's generic "Summarize..." prompt when no return is specified
-  "replace_generic": true
+  "replace_generic": true,
 
   // Custom prompt to use when replacing_generic: true | optional
   //"generic_return": "Challenge AND review THEN validate OR revise the previous task tool output. AFTER This is done, USE the question tool to let the user direct the next step. Order your questions defensively and logically"

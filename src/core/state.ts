@@ -29,6 +29,8 @@ const executedReturns = new Set<string>();
 const firstReturnPrompt = new Map<string, string>();
 const subtaskParentSession = new Map<string, string>();
 const pendingModelOverride = new Map<string, string>();
+const pendingAgentOverride = new Map<string, string>();
+const deferredReturnPrompt = new Map<string, string>();
 // REMOVED: lastReturnWasCommand - no longer needed with session.idle
 
 // Named subtask results storage: parentSessionID -> Map<name, result>
@@ -371,6 +373,47 @@ export function deletePendingModelOverride(sessionID: string): void {
   pendingModelOverride.delete(sessionID);
 }
 
+export function getPendingAgentOverride(sessionID: string): string | undefined {
+  return pendingAgentOverride.get(sessionID);
+}
+
+export function setPendingAgentOverride(sessionID: string, agent: string): void {
+  pendingAgentOverride.set(sessionID, agent);
+}
+
+export function deletePendingAgentOverride(sessionID: string): void {
+  pendingAgentOverride.delete(sessionID);
+}
+
+// ============================================================================
+// Deferred Return Prompt (used for loops)
+// ============================================================================
+
+export function getDeferredReturnPrompt(
+  sessionID: string
+): string | undefined {
+  return deferredReturnPrompt.get(sessionID);
+}
+
+export function setDeferredReturnPrompt(
+  sessionID: string,
+  prompt: string
+): void {
+  if (!deferredReturnPrompt.has(sessionID)) {
+    deferredReturnPrompt.set(sessionID, prompt);
+  }
+}
+
+export function consumeDeferredReturnPrompt(
+  sessionID: string
+): string | undefined {
+  const prompt = deferredReturnPrompt.get(sessionID);
+  if (prompt) {
+    deferredReturnPrompt.delete(sessionID);
+  }
+  return prompt;
+}
+
 // REMOVED: lastReturnWasCommand functions - no longer needed with session.idle
 // The session.idle event fires when the session is truly idle, eliminating
 // the need to track whether a command is still running.
@@ -510,6 +553,20 @@ export function captureSubtaskResult(
   subtaskResults.get(parentSessionID)!.set(name, result);
 
   pendingResultCapture.delete(subtaskSessionID);
+}
+
+/**
+ * Store a named result directly for a session (used for main session captures).
+ */
+export function storeSubtaskResult(
+  sessionID: string,
+  name: string,
+  result: string
+): void {
+  if (!subtaskResults.has(sessionID)) {
+    subtaskResults.set(sessionID, new Map());
+  }
+  subtaskResults.get(sessionID)!.set(name, result);
 }
 
 /**

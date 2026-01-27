@@ -1,5 +1,5 @@
 /**
- * Parse auto workflow output from LLM response
+ * Parse auto workflow output from LLM response (POC)
  */
 
 export interface AutoWorkflowResult {

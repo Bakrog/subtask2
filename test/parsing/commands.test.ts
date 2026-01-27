@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import {
   parseCommandWithOverrides,
   parseInlineSubtask,
+  parseOverridesFromArgs,
 } from "../../src/parsing/commands";
 
 describe("parseCommandWithOverrides", () => {
@@ -197,5 +198,20 @@ describe("parseInlineSubtask", () => {
       "{agent:build}   multiword prompt here  "
     );
     expect(result?.prompt).toBe("multiword prompt here");
+  });
+});
+
+describe("parseOverridesFromArgs", () => {
+  it("extracts overrides and rest from arguments", () => {
+    const result = parseOverridesFromArgs(
+      "{model:openai/gpt-4o && agent:build} run tests"
+    );
+    expect(result?.overrides.model).toBe("openai/gpt-4o");
+    expect(result?.overrides.agent).toBe("build");
+    expect(result?.rest).toBe("run tests");
+  });
+
+  it("returns null when no override block is present", () => {
+    expect(parseOverridesFromArgs("run tests")).toBeNull();
   });
 });

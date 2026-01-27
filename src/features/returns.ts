@@ -7,6 +7,7 @@ import {
   registerPendingParentForPrompt,
   setSessionMainCommand,
   setPendingModelOverride,
+  setPendingAgentOverride,
   getReturnArgsState,
   deleteReturnArgsState,
   pushReturnStack,
@@ -189,6 +190,13 @@ export async function executeReturn(
       );
     }
 
+    if (parsed.overrides.agent) {
+      setPendingAgentOverride(sessionID, parsed.overrides.agent);
+      log(
+        `executeReturn: stored agent override for ${sessionID}: ${parsed.overrides.agent}`
+      );
+    }
+
     // Register result capture for non-subtask commands with `as:`
     // The next LLM turn after the command completes will be captured
     if (parsed.overrides.as) {
@@ -201,7 +209,14 @@ export async function executeReturn(
     // Store loop config if present (inline takes precedence over passed-in)
     const loopConfig = parsed.overrides.loop || loopOverride;
     if (loopConfig) {
-      startLoop(sessionID, loopConfig, pathKey, args, parsed.overrides.model);
+      startLoop(
+        sessionID,
+        loopConfig,
+        pathKey,
+        args,
+        parsed.overrides.model,
+        parsed.overrides.agent
+      );
       log(
         `executeReturn: started retry loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`
       );

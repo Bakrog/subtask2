@@ -29,6 +29,11 @@ export function parseOverridesString(overridesStr: string): CommandOverrides {
         overrides.model = value;
       } else if (key === "agent") {
         overrides.agent = value;
+      } else if (key === "retry") {
+        const max = parseInt(value, 10);
+        if (!isNaN(max) && max > 0) {
+          overrides.loop = { max, until: "" };
+        }
       } else if (key === "loop") {
         // loop:10 - just max iterations, no until marker
         const max = parseInt(value, 10);

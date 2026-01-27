@@ -61,6 +61,8 @@ describe("loadConfig", () => {
     try {
       if (originalContent !== null) {
         await writeFile(TEST_CONFIG_PATH, originalContent);
+      } else if (existsSync(TEST_CONFIG_PATH)) {
+        await unlink(TEST_CONFIG_PATH);
       }
     } catch {}
   });
@@ -118,5 +120,20 @@ describe("loadConfig", () => {
     );
     const config = await loadConfig();
     expect(config.replace_generic).toBe(true);
+  });
+
+  it("writes valid JSONC when config is missing", async () => {
+    if (existsSync(TEST_CONFIG_PATH)) {
+      await unlink(TEST_CONFIG_PATH);
+    }
+    const config = await loadConfig();
+    expect(config.replace_generic).toBe(true);
+    const text = await Bun.file(TEST_CONFIG_PATH).text();
+    const stripped = text
+      .replace(/\/\/.*$/gm, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/,\s*([}\]])/g, "$1");
+    const parsed = JSON.parse(stripped);
+    expect(parsed.replace_generic).toBe(true);
   });
 });

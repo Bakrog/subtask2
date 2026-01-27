@@ -51,9 +51,15 @@ import {
   getPendingModelOverride,
   setPendingModelOverride,
   deletePendingModelOverride,
+  getPendingAgentOverride,
+  setPendingAgentOverride,
+  deletePendingAgentOverride,
   // Named subtask results
   registerPendingMainSessionCapture,
   consumePendingMainSessionCapture,
+  getDeferredReturnPrompt,
+  setDeferredReturnPrompt,
+  consumeDeferredReturnPrompt,
   registerPendingResultCaptureByPrompt,
   consumePendingResultCaptureByPrompt,
   registerPendingResultCapture,
@@ -61,6 +67,7 @@ import {
   captureSubtaskResult,
   getSubtaskResult,
   getAllSubtaskResults,
+  storeSubtaskResult,
   resolveResultReferences,
   clearSubtaskResults,
   OPENCODE_GENERIC,
@@ -503,6 +510,50 @@ describe("state management", () => {
     });
   });
 
+  describe("pending agent override", () => {
+    beforeEach(() => {
+      deletePendingAgentOverride(sessionId);
+    });
+
+    it("sets and gets agent override", () => {
+      setPendingAgentOverride(sessionId, "explore");
+      expect(getPendingAgentOverride(sessionId)).toBe("explore");
+    });
+
+    it("deletes agent override", () => {
+      setPendingAgentOverride(sessionId, "x");
+      deletePendingAgentOverride(sessionId);
+      expect(getPendingAgentOverride(sessionId)).toBeUndefined();
+    });
+
+    it("returns undefined for non-existent", () => {
+      expect(getPendingAgentOverride("non-existent")).toBeUndefined();
+    });
+  });
+
+  describe("deferred return prompt", () => {
+    beforeEach(() => {
+      consumeDeferredReturnPrompt(sessionId);
+    });
+
+    it("sets and gets deferred return", () => {
+      setDeferredReturnPrompt(sessionId, "return later");
+      expect(getDeferredReturnPrompt(sessionId)).toBe("return later");
+    });
+
+    it("does not overwrite existing deferred return", () => {
+      setDeferredReturnPrompt(sessionId, "first");
+      setDeferredReturnPrompt(sessionId, "second");
+      expect(getDeferredReturnPrompt(sessionId)).toBe("first");
+    });
+
+    it("consumes deferred return", () => {
+      setDeferredReturnPrompt(sessionId, "consume me");
+      expect(consumeDeferredReturnPrompt(sessionId)).toBe("consume me");
+      expect(getDeferredReturnPrompt(sessionId)).toBeUndefined();
+    });
+  });
+
   // ============================================================================
   // Named Subtask Results ($RESULT[name])
   // ============================================================================
@@ -621,6 +672,11 @@ describe("state management", () => {
 
     it("returns undefined for non-existent session", () => {
       expect(getSubtaskResult("unknown-session", "test")).toBeUndefined();
+    });
+
+    it("stores result directly for a session", () => {
+      storeSubtaskResult(parentSession, "direct", "Direct result");
+      expect(getSubtaskResult(parentSession, "direct")).toBe("Direct result");
     });
   });
 

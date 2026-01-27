@@ -58,12 +58,30 @@ describe("parseLoopConfig", () => {
 describe("parseParallelItem", () => {
   it("parses simple command string", () => {
     const result = parseParallelItem("/plan-gemini");
-    expect(result).toEqual({ command: "plan-gemini", arguments: undefined });
+    expect(result).toEqual({
+      command: "plan-gemini",
+      arguments: undefined,
+      prompt: undefined,
+      model: undefined,
+      agent: undefined,
+      loop: undefined,
+      as: undefined,
+      inline: undefined,
+    });
   });
 
   it("parses command with arguments", () => {
     const result = parseParallelItem("/research focus on auth");
-    expect(result).toEqual({ command: "research", arguments: "focus on auth" });
+    expect(result).toEqual({
+      command: "research",
+      arguments: "focus on auth",
+      prompt: undefined,
+      model: undefined,
+      agent: undefined,
+      loop: undefined,
+      as: undefined,
+      inline: undefined,
+    });
   });
 
   it("parses command with model override", () => {
@@ -71,6 +89,7 @@ describe("parseParallelItem", () => {
     expect(result?.command).toBe("plan");
     expect(result?.arguments).toBe("design auth");
     expect(result?.model).toBe("openai/gpt-4o");
+    expect(result?.agent).toBeUndefined();
   });
 
   it("parses command with loop override", () => {
@@ -79,9 +98,33 @@ describe("parseParallelItem", () => {
     expect(result?.loop).toEqual({ max: 5, until: "" });
   });
 
+  it("parses inline subtask command", () => {
+    const result = parseParallelItem(
+      "/subtask {model:openai/gpt-4o && agent:build} do work"
+    );
+    expect(result).toEqual({
+      command: "_inline_subtask_",
+      inline: true,
+      prompt: "do work",
+      model: "openai/gpt-4o",
+      agent: "build",
+      loop: undefined,
+      as: undefined,
+    });
+  });
+
   it("parses non-slash command string", () => {
     const result = parseParallelItem("plain-cmd");
-    expect(result).toEqual({ command: "plain-cmd" });
+    expect(result).toEqual({
+      command: "plain-cmd",
+      arguments: undefined,
+      prompt: undefined,
+      model: undefined,
+      agent: undefined,
+      loop: undefined,
+      as: undefined,
+      inline: undefined,
+    });
   });
 
   it("parses object format with command and arguments", () => {
@@ -89,7 +132,16 @@ describe("parseParallelItem", () => {
       command: "research",
       arguments: "auth patterns",
     });
-    expect(result).toEqual({ command: "research", arguments: "auth patterns" });
+    expect(result).toEqual({
+      command: "research",
+      arguments: "auth patterns",
+      prompt: undefined,
+      model: undefined,
+      agent: undefined,
+      loop: undefined,
+      as: undefined,
+      inline: undefined,
+    });
   });
 
   it("parses object format with model", () => {
@@ -97,7 +149,16 @@ describe("parseParallelItem", () => {
       command: "plan",
       model: "anthropic/claude-sonnet-4",
     });
-    expect(result?.model).toBe("anthropic/claude-sonnet-4");
+    expect(result).toEqual({
+      command: "plan",
+      arguments: undefined,
+      prompt: undefined,
+      model: "anthropic/claude-sonnet-4",
+      agent: undefined,
+      loop: undefined,
+      as: undefined,
+      inline: undefined,
+    });
   });
 
   it("returns null for null input", () => {
@@ -132,7 +193,16 @@ describe("parseParallelItem", () => {
     ]);
     expect(result).toHaveLength(2);
     expect(result[0].command).toBe("simple");
-    expect(result[1]).toEqual({ command: "complex", arguments: "args" });
+    expect(result[1]).toEqual({
+      command: "complex",
+      arguments: "args",
+      prompt: undefined,
+      model: undefined,
+      agent: undefined,
+      loop: undefined,
+      as: undefined,
+      inline: undefined,
+    });
   });
 
   it("filters out null items", () => {
@@ -173,5 +243,21 @@ describe("parseParallelItem", () => {
     expect(result).toHaveLength(2);
     expect(result[0].arguments).toBe("focus on auth");
     expect(result[1].arguments).toBe("check db queries");
+  });
+
+  it("parses inline subtask in parallel config", () => {
+    const result = parseParallelConfig(
+      "/subtask {model:openai/gpt-4o} analyze code"
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({
+      command: "_inline_subtask_",
+      inline: true,
+      prompt: "analyze code",
+      model: "openai/gpt-4o",
+      agent: undefined,
+      loop: undefined,
+      as: undefined,
+    });
   });
 });

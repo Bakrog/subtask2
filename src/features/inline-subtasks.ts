@@ -175,6 +175,9 @@ export async function executeInlineSubtask(
           prompt: pp.prompt,
           as: pp.as,
         });
+        if (pp.as) {
+          registerPendingResultCaptureByPrompt(pp.prompt, sessionID, pp.as);
+        }
       }
       log(
         `executeInlineSubtask: added ${parallelParts.length} parallel subtasks`

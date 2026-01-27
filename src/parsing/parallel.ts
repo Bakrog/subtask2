@@ -33,10 +33,22 @@ export function parseParallelItem(p: unknown): ParallelCommand | null {
     if (trimmed.startsWith("/")) {
       // Parse /command {overrides} args syntax
       const parsed = parseCommandWithOverrides(trimmed);
+      if (parsed.isInlineSubtask) {
+        return {
+          command: "_inline_subtask_",
+          inline: true,
+          prompt: parsed.arguments,
+          model: parsed.overrides.model,
+          agent: parsed.overrides.agent,
+          loop: parsed.overrides.loop,
+          as: parsed.overrides.as,
+        };
+      }
       return {
         command: parsed.command,
         arguments: parsed.arguments,
         model: parsed.overrides.model,
+        agent: parsed.overrides.agent,
         loop: parsed.overrides.loop,
         as: parsed.overrides.as,
       };
@@ -47,9 +59,12 @@ export function parseParallelItem(p: unknown): ParallelCommand | null {
     return {
       command: (p as any).command,
       arguments: (p as any).arguments,
+      prompt: (p as any).prompt,
       model: (p as any).model,
+      agent: (p as any).agent,
       loop: (p as any).loop,
       as: (p as any).as,
+      inline: (p as any).inline,
     };
   }
   return null;

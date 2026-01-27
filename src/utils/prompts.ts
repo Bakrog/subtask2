@@ -65,7 +65,7 @@ Please yield back now to allow the next loop iteration to run.
 }
 
 /**
- * Auto workflow generation prompt - teaches LLM to generate subtask2 inline syntax
+ * Auto workflow generation prompt (POC) - teaches LLM to generate subtask2 inline syntax
  * Contains {{SUBTASK2_README}} placeholder that gets replaced with actual README content
  */
 export const AUTO_WORKFLOW_PROMPT_TEMPLATE = `You are tasked with creating a subtask2 command workflow to fulfill the user's request.
