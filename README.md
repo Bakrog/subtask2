@@ -79,7 +79,7 @@ Design the auth system for $ARGUMENTS
 When a `subtask: true` completes, OpenCode normally injects a hidden synthetic user message asking the model to "summarize the task tool output..." - Subtask2 completely suppresses this message and handles returns differently:
 
 - **Prompt returns**: Fired as **real user messages** visible in your conversation. You'll see the return prompt appear as if you typed it.
-- **Command returns** (starting with `/`): The command executes immediately without any visible message.
+- **Command returns** (starting with `/`): The command executes immediately.
 
 This gives you full visibility into what's driving the agent's next action.
 
@@ -161,28 +161,9 @@ For simple subtasks without overrides:
 
 This lets you spawn ad-hoc subtasks without creating command files or using return chains.
 
-**Instant execution with command placeholder:**
+**Command registration:**
 
-To make inline subtasks execute **immediately** when typed, create a placeholder command file:
-
-```markdown
-## <!-- ~/.config/opencode/command/subtask.md -->
-
-description: Inline subtask placeholder (handled by subtask2 plugin)
-subtask: true
-
----
-
-$ARGUMENTS
-```
-
-With this file in place:
-
-- OpenCode recognizes `/subtask` as a command and triggers the command hook instantly
-- subtask2 intercepts the command, parses the `{...}` overrides, and spawns the subtask
-- No waiting for the LLM to finish its turn - execution is immediate
-
-Without the placeholder file, inline subtasks still work but execute after the model completes its response.
+Subtask2 registers `/subtask` via the plugin config hook. No manual command file is needed.
 
 ### 3. `{loop:N}` and `{loop:N && until:X}` - Loop control
 

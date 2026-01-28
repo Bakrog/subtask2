@@ -31,6 +31,14 @@ export const createPlugin: Plugin = async ctx => {
     "tool.execute.before": toolExecuteBefore,
     "tool.execute.after": toolExecuteAfter,
     "experimental.chat.messages.transform": chatMessagesTransform,
+    config: async (input: any) => {
+      input.command ??= {};
+      input.command.subtask = {
+        description: "Run a command on the fly, supports all subtask2 features",
+        template: "[ARGUMENTS]",
+      };
+      log(`Registered /subtask command`);
+    },
     event: async ({ event }: { event: { type: string; properties: any } }) => {
       if (event.type === "session.idle") {
         await handleSessionIdle(event.properties.sessionID);
