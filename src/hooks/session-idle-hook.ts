@@ -11,6 +11,7 @@ import {
   captureSubtaskResult,
   storeSubtaskResult,
   consumeDeferredReturnPrompt,
+  pushReturnStack,
 } from "../core/state";
 import { log } from "../utils/logger";
 import { executeReturn } from "../features/returns";
@@ -138,6 +139,12 @@ export async function handleSessionIdle(sessionID: string) {
       }
     } else {
       // Break - clear the loop and continue with normal flow
+      if (evalState.deferredReturns?.length) {
+        pushReturnStack(sessionID, [...evalState.deferredReturns]);
+        log(
+          `loop: queued ${evalState.deferredReturns.length} deferred returns after condition satisfied`
+        );
+      }
       log(`loop: breaking loop, condition satisfied`);
       clearLoop(sessionID);
     }

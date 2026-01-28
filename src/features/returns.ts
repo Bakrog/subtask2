@@ -103,7 +103,8 @@ export async function executeReturn(
           "_inline_subtask_",
           prompt,
           parsed.overrides.model,
-          parsed.overrides.agent
+          parsed.overrides.agent,
+          parsed.overrides.return
         );
         log(
           `executeReturn: started inline subtask loop for ${sessionID}: max=${loopConfig.max}, until="${loopConfig.until}"`
@@ -111,10 +112,9 @@ export async function executeReturn(
       }
 
       // Handle inline subtask returns - push onto stack (if not also looping)
-      // Loop + return conflict: if looping, returns are ignored (loop needs the return slot for evaluation)
       if (parsed.overrides.loop && parsed.overrides.return?.length) {
         log(
-          `executeReturn: WARNING - inline subtask has both loop and return, returns will be ignored`
+          `executeReturn: inline subtask has loop + return, deferring ${parsed.overrides.return.length} returns until loop completes`
         );
       } else if (
         parsed.overrides.return &&

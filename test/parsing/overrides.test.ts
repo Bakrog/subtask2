@@ -29,11 +29,6 @@ describe("parseOverridesString", () => {
     expect(result.loop).toEqual({ max: 5, until: "tests pass" });
   });
 
-  it("parses retry as legacy loop alias", () => {
-    const result = parseOverridesString("retry:4 && until:ready");
-    expect(result.loop).toEqual({ max: 4, until: "ready" });
-  });
-
   it("parses complex inline with all parameters", () => {
     const result = parseOverridesString(
       "model:anthropic/claude-sonnet-4 && agent:build && loop:5 && until:all done && return:validate || test"

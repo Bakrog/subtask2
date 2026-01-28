@@ -15,6 +15,7 @@ import {
   setSubtaskParentSession,
   deleteSubtaskParentSession,
   getSubtaskParentSession,
+  pushReturnStack,
   setHasActiveSubtask,
   consumePendingResultCaptureByPrompt,
   registerPendingResultCapture,
@@ -169,6 +170,7 @@ export async function toolExecuteAfter(input: any, output: any) {
   const loopSession = parentSession || input.sessionID;
   const retryLoop = getLoopState(loopSession);
   const isInlineLoopIteration = retryLoop?.commandName === "_inline_subtask_";
+  const returnSession = isInlineLoopIteration ? loopSession : input.sessionID;
 
   log(
     `tool.after: parentSession=${parentSession}, loopSession=${loopSession}, hasLoop=${!!retryLoop}, isInlineLoop=${isInlineLoopIteration}`
@@ -253,6 +255,12 @@ export async function toolExecuteAfter(input: any, output: any) {
     // Check if max iterations reached
     if (isMaxIterationsReached(loopSession)) {
       log(`retry: MAX ITERATIONS reached (${retryLoop.config.max}), stopping`);
+      if (retryLoop.deferredReturns?.length) {
+        pushReturnStack(returnSession, [...retryLoop.deferredReturns]);
+        log(
+          `retry: queued ${retryLoop.deferredReturns.length} deferred returns after max iterations`
+        );
+      }
       clearLoop(loopSession);
       clearPendingEvaluation(loopSession);
       // Continue with normal return flow
@@ -267,7 +275,6 @@ export async function toolExecuteAfter(input: any, output: any) {
   }
 
   // For inline loops, set pendingReturn on the parent session after loop completes
-  const returnSession = isInlineLoopIteration ? loopSession : input.sessionID;
   const firstReturn = loopCommandConfig?.return?.[0];
 
   if (firstReturn && isLoopIteration) {

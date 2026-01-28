@@ -53,7 +53,8 @@ export async function buildInlineSubtaskPart(
       "_inline_subtask_",
       prompt,
       parsed.overrides.model,
-      parsed.overrides.agent
+      parsed.overrides.agent,
+      parsed.overrides.return
     );
     log(
       `buildInlineSubtaskPart: started loop for "${parsed.overrides.loop.until}" max=${parsed.overrides.loop.max}`
@@ -119,7 +120,8 @@ export async function executeInlineSubtask(
       "_inline_subtask_",
       prompt,
       parsed.overrides.model,
-      parsed.overrides.agent
+      parsed.overrides.agent,
+      parsed.overrides.return
     );
     log(
       `inline subtask: started loop for "${parsed.overrides.loop.until}" max=${parsed.overrides.loop.max}`

@@ -33,12 +33,12 @@ If you already know opencode `/commands`, you'll be right at home, if not, start
 
 - `return` instruct main session on command/subtask(s) result
 - `as` name subtask results for later reference with `$RESULT[name]`
-- `loop` loop subtask until user condition is met - _WIP ⚠️_
+- `loop` loop subtask until user condition is met
 - `parallel` run subtasks concurrently - _pending PR ⚠️_
 - `arguments` pass arguments with command frontmatter or `||` message pipe
 - `$TURN[n]` pass session turns (user/assistant messages)
 
-Requires [this PR](https://github.com/sst/opencode/pull/6478) for `parallel` features, as well as proper model inheritance (piping the right model and agent to the right subtask and back) to work.
+Requires [this PR](https://github.com/sst/opencode/pull/6478) for the `parallel` feature
 
 ### 1. `return` - Or the old 'look again' trick
 
@@ -85,7 +85,7 @@ This gives you full visibility into what's driving the agent's next action.
 
 `/commands` are executed as full commands with their own `parallel` and `return`
 
-### 2. `{model:...}` - Inline model override ⚠️ **PENDING PR**
+### 2. `{model:...}` - Inline model override
 
 Override the model for any command invocation without modifying the command file. Place overrides after the command with a space:
 
@@ -309,7 +309,7 @@ Or for all commands to inherit the main `$ARGUMENTS`:
 parallel: /research-docs, /research-codebase, /security-audit
 ```
 
-**Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return` are ignored - only the parent's `return` applies. Nested parallels are automatically flattened (max depth: 5).
+**Note:** Parallel commands are forced into subtasks regardless of their own `subtask` setting. Their `return` are ignored - only the parent's `return` applies. Nested parallels are automatically flattened with a **maximum depth of 5** to prevent infinite recursion.
 
 #### Priority: pipe args > frontmatter args > inherit main args
 

@@ -7,6 +7,7 @@ export interface LoopState {
   arguments: string;
   model?: string;
   agent?: string;
+  deferredReturns?: string[];
 }
 
 // Track active retry loops by session ID
@@ -40,7 +41,8 @@ export function startLoop(
   commandName: string,
   args: string,
   model?: string,
-  agent?: string
+  agent?: string,
+  deferredReturns?: string[]
 ): void {
   activeLoops.set(sessionId, {
     config,
@@ -49,6 +51,7 @@ export function startLoop(
     arguments: args,
     model,
     agent,
+    deferredReturns,
   });
 }
 
